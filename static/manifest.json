@@ -1,0 +1,21 @@
+{
+  "name": "voabkr · 한국어 단어장",
+  "short_name": "보아봐",
+  "description": "Tactile Korean Spaced Repetition Flashcard Notebook for mastering Korean vocabulary and grammar.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F8F6F0",
+  "theme_color": "#F8F6F0",
+  "categories": ["education", "books", "productivity"],
+  "lang": "ko",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "128x128 192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

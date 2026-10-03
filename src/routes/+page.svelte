@@ -9,6 +9,7 @@
 	import VerificationBanner from '$lib/components/feedback/VerificationBanner.svelte';
 	import DeckCard from '$lib/components/decks/DeckCard.svelte';
 	import TactileButton from '$lib/components/forms/TactileButton.svelte';
+	import SEO from '$lib/components/seo/SEO.svelte';
 
 	let dueCards = $state<Card[]>([]);
 	let decks = $state<Deck[]>([]);
@@ -54,9 +55,11 @@
 	let userInitial = $derived(auth.userName ? auth.userName[0].toUpperCase() : 'V');
 </script>
 
-<svelte:head>
-	<title>voabkr — Today's Dashboard</title>
-</svelte:head>
+<SEO
+	title="voabkr · 오늘 공부 | Today's Korean Dashboard"
+	description="Track your daily Korean flashcards, review due items, and master Korean vocabulary and grammar with SuperMemo SM-2."
+	canonical="https://vocabkr.voyagera.ch"
+/>
 
 <div
 	class="flex flex-1 flex-col px-4 pt-4 pb-28"

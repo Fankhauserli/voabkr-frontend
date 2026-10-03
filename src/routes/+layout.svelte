@@ -11,6 +11,7 @@
 	import CardCreatorModal from '$lib/components/forms/CardCreatorModal.svelte';
 	import DeckCreatorModal from '$lib/components/forms/DeckCreatorModal.svelte';
 	import ExitStudyModal from '$lib/components/study/ExitStudyModal.svelte';
+	import SEO from '$lib/components/seo/SEO.svelte';
 
 	interface Props {
 		children?: Snippet;
@@ -45,6 +46,8 @@
 		};
 	});
 </script>
+
+<SEO />
 
 <div class="min-h-screen bg-canvas font-sans text-ink-primary">
 	<main class="mx-auto flex min-h-screen max-w-lg flex-col">

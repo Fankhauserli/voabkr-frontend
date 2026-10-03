@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="40" x2="40" y2="40" stroke="#E3DEC3" stroke-width="0.75" stroke-opacity="0.6"/>
+      <line x1="40" y1="0" x2="40" y2="40" stroke="#E3DEC3" stroke-width="0.75" stroke-opacity="0.6"/>
+    </pattern>
+    <filter id="shadow" x="-5%" y="-5%" width="110%" height="115%">
+      <feDropShadow dx="0" dy="8" stdDeviation="16" flood-color="#121211" flood-opacity="0.08"/>
+    </filter>
+  </defs>
+
+  <!-- Hanji paper canvas -->
+  <rect width="1200" height="630" fill="#F8F6F0"/>
+  <rect width="1200" height="630" fill="url(#grid)"/>
+
+  <!-- Outer notebook border -->
+  <rect x="32" y="32" width="1136" height="566" rx="20" fill="none" stroke="#E3DEC3" stroke-width="2"/>
+
+  <!-- Centered Card Artifact -->
+  <g filter="url(#shadow)">
+    <rect x="80" y="80" width="1040" height="470" rx="24" fill="#FFFFFF" stroke="#E3DEC3" stroke-width="1.5"/>
+  </g>
+
+  <!-- Left Accent spine -->
+  <rect x="80" y="80" width="12" height="470" rx="6" fill="#C2593F"/>
+
+  <!-- Content Group -->
+  <g transform="translate(140, 150)">
+    <!-- Top badge & seal -->
+    <g transform="translate(0, 0)">
+      <rect width="140" height="36" rx="8" fill="#F0EDE4" stroke="#E3DEC3" stroke-width="1"/>
+      <text x="70" y="23" font-family="'Pretendard', sans-serif" font-size="14" font-weight="700" fill="#3D3B38" text-anchor="middle" letter-spacing="1">KOREAN SRS</text>
+    </g>
+
+    <!-- Main Title -->
+    <text x="0" y="110" font-family="'Pretendard', -apple-system, sans-serif" font-size="68" font-weight="900" fill="#121211" letter-spacing="-1.5">
+      voabkr <tspan fill="#C2593F">·</tspan> 보아봐
+    </text>
+
+    <!-- Subtitle -->
+    <text x="0" y="170" font-family="'Pretendard', sans-serif" font-size="28" font-weight="500" fill="#3D3B38">
+      Tactile Spaced Repetition Notebook for Korean Learners
+    </text>
+
+    <!-- Feature pills -->
+    <g transform="translate(0, 240)">
+      <!-- Pill 1 -->
+      <rect x="0" y="0" width="190" height="44" rx="10" fill="#F0EDE4" stroke="#E3DEC3" stroke-width="1"/>
+      <circle cx="22" cy="22" r="6" fill="#C2593F"/>
+      <text x="36" y="27" font-family="'Pretendard', sans-serif" font-size="16" font-weight="600" fill="#121211">SM-2 Algorithm</text>
+
+      <!-- Pill 2 -->
+      <rect x="206" y="0" width="170" height="44" rx="10" fill="#F0EDE4" stroke="#E3DEC3" stroke-width="1"/>
+      <circle cx="228" cy="22" r="6" fill="#3E5C76"/>
+      <text x="242" y="27" font-family="'Pretendard', sans-serif" font-size="16" font-weight="600" fill="#121211">Hangul First</text>
+
+      <!-- Pill 3 -->
+      <rect x="392" y="0" width="180" height="44" rx="10" fill="#F0EDE4" stroke="#E3DEC3" stroke-width="1"/>
+      <circle cx="414" cy="22" r="6" fill="#6B705C"/>
+      <text x="428" y="27" font-family="'Pretendard', sans-serif" font-size="16" font-weight="600" fill="#121211">Offline Queue</text>
+
+      <!-- Pill 4 -->
+      <rect x="588" y="0" width="200" height="44" rx="10" fill="#F0EDE4" stroke="#E3DEC3" stroke-width="1"/>
+      <circle cx="610" cy="22" r="6" fill="#7D4E57"/>
+      <text x="624" y="27" font-family="'Pretendard', sans-serif" font-size="16" font-weight="600" fill="#121211">Tactile Stationery</text>
+    </g>
+  </g>
+
+  <!-- Red Stamp Seal at bottom-right -->
+  <g transform="translate(970, 390)">
+    <rect width="90" height="90" rx="16" fill="#C2593F"/>
+    <rect x="6" y="6" width="78" height="78" rx="12" fill="none" stroke="#FFFFFF" stroke-opacity="0.3" stroke-width="1.5"/>
+    <text x="45" y="55" font-family="'Pretendard', sans-serif" font-size="44" font-weight="900" fill="#F8F6F0" text-anchor="middle" dominant-baseline="central">보</text>
+  </g>
+</svg>

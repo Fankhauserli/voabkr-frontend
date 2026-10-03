@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  <url>
+    <loc>https://vocabkr.voyagera.ch/</loc>
+    <lastmod>2026-10-03</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://vocabkr.voyagera.ch/" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://vocabkr.voyagera.ch/" />
+  </url>
+  <url>
+    <loc>https://vocabkr.voyagera.ch/decks</loc>
+    <lastmod>2026-10-03</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://vocabkr.voyagera.ch/decks" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://vocabkr.voyagera.ch/decks" />
+  </url>
+  <url>
+    <loc>https://vocabkr.voyagera.ch/login</loc>
+    <lastmod>2026-10-03</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://vocabkr.voyagera.ch/login" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://vocabkr.voyagera.ch/login" />
+  </url>
+</urlset>

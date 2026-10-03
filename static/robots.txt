@@ -1,3 +1,12 @@
-# allow crawling everything by default
+# robots.txt for voabkr (https://vocabkr.voyagera.ch)
 User-agent: *
-Disallow:
+Allow: /
+Allow: /decks
+Allow: /login
+Disallow: /study
+Disallow: /study/
+Disallow: /settings
+Disallow: /verify-email
+
+# Sitemap index
+Sitemap: https://vocabkr.voyagera.ch/sitemap.xml

@@ -8,6 +8,7 @@
 	import DeckCard from '$lib/components/decks/DeckCard.svelte';
 	import BottomNavBar from '$lib/components/navigation/BottomNavBar.svelte';
 	import TactileButton from '$lib/components/forms/TactileButton.svelte';
+	import SEO from '$lib/components/seo/SEO.svelte';
 
 	let decks = $state<Deck[]>([]);
 	let activeFilter = $state<'all' | DeckType>('all');
@@ -52,9 +53,11 @@
 	let grammarCount = $derived(decks.filter((d) => d.type === 'grammar').length);
 </script>
 
-<svelte:head>
-	<title>voabkr — Decks Library</title>
-</svelte:head>
+<SEO
+	title="voabkr · 단어장 보관함 | Korean Flashcard Decks"
+	description="Browse and organize your Korean vocabulary and grammar card decks. Structured for efficient spaced repetition mastery."
+	canonical="https://vocabkr.voyagera.ch/decks"
+/>
 
 <div
 	class="flex flex-1 flex-col px-4 pt-4 pb-28"
