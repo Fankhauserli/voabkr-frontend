@@ -3,7 +3,6 @@
 	import { auth } from '$lib/stores/auth.svelte';
 	import { reviewApi } from '$lib/api/reviews';
 	import { deckApi } from '$lib/api/decks';
-	import { modal } from '$lib/stores/modal.svelte';
 	import type { Card, Deck } from '$lib/types';
 	import BottomNavBar from '$lib/components/navigation/BottomNavBar.svelte';
 	import VerificationBanner from '$lib/components/feedback/VerificationBanner.svelte';
@@ -195,15 +194,10 @@
 
 		{#if decks.length === 0 && !isLoading}
 			<div class="rounded-2xl border border-dashed border-border-strong bg-surface p-6 text-center">
-				<p class="text-sm font-semibold text-ink-primary">No Decks Yet</p>
+				<p class="text-sm font-semibold text-ink-primary">No Decks Available</p>
 				<p class="mt-1 text-xs text-ink-secondary">
-					Create your first vocabulary or grammar deck to start adding cards.
+					Decks will appear here once configured in the database.
 				</p>
-				<div class="mt-4 inline-block">
-					<TactileButton variant="primary" size="sm" onclick={() => modal.openDeckCreator()}>
-						+ Create Deck
-					</TactileButton>
-				</div>
 			</div>
 		{:else}
 			<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">

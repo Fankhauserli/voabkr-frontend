@@ -9,6 +9,8 @@
 	import SessionProgressBar from '$lib/components/study/SessionProgressBar.svelte';
 	import TactileButton from '$lib/components/forms/TactileButton.svelte';
 
+	import { page } from '$app/state';
+
 	onMount(() => {
 		const unregisterGuard = registerStudySessionGuard('study-session', () => {
 			if (studySession.isActive) {
@@ -18,7 +20,13 @@
 			return false;
 		});
 
-		studySession.startDueSession();
+		const rawDeckId =
+			page.url.searchParams.get('deck_id') ||
+			page.url.searchParams.get('deckId') ||
+			page.url.searchParams.get('deck');
+		const targetDeckId = rawDeckId ? parseInt(rawDeckId, 10) : undefined;
+
+		studySession.startDueSession(targetDeckId);
 
 		return () => {
 			unregisterGuard();

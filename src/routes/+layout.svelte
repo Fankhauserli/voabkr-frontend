@@ -8,8 +8,6 @@
 	import { initializeBackButton } from '$lib/utils/backButton';
 	import { initializeStatusBar } from '$lib/utils/statusBar';
 	import Toast from '$lib/components/feedback/Toast.svelte';
-	import CardCreatorModal from '$lib/components/forms/CardCreatorModal.svelte';
-	import DeckCreatorModal from '$lib/components/forms/DeckCreatorModal.svelte';
 	import ExitStudyModal from '$lib/components/study/ExitStudyModal.svelte';
 	import SEO from '$lib/components/seo/SEO.svelte';
 
@@ -58,7 +56,5 @@
 
 	<!-- Global Overlays & Modals -->
 	<Toast />
-	<CardCreatorModal />
-	<DeckCreatorModal />
 	<ExitStudyModal />
 </div>

@@ -1,13 +1,10 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { deckApi } from '$lib/api/decks';
-	import { modal } from '$lib/stores/modal.svelte';
-	import { toast } from '$lib/stores/toast.svelte';
 	import { selectionClick } from '$lib/utils/haptics';
 	import type { Deck, DeckType } from '$lib/types';
 	import DeckCard from '$lib/components/decks/DeckCard.svelte';
 	import BottomNavBar from '$lib/components/navigation/BottomNavBar.svelte';
-	import TactileButton from '$lib/components/forms/TactileButton.svelte';
 	import SEO from '$lib/components/seo/SEO.svelte';
 
 	let decks = $state<Deck[]>([]);
@@ -26,17 +23,6 @@
 			decks = [];
 		} finally {
 			isLoading = false;
-		}
-	}
-
-	async function handleDeleteDeck(deckId: number) {
-		if (!confirm('Are you sure you want to delete this deck?')) return;
-		try {
-			await deckApi.deleteDeck(deckId);
-			decks = decks.filter((d) => d.id !== deckId);
-			toast.success('Deck deleted');
-		} catch (err: unknown) {
-			toast.error(err instanceof Error ? err.message : 'Failed to delete deck');
 		}
 	}
 
@@ -69,10 +55,6 @@
 			<h1 class="text-2xl font-bold tracking-tight text-ink-primary">Decks Library</h1>
 			<p class="text-xs text-ink-secondary">Vocabulary & Grammar collections</p>
 		</div>
-
-		<TactileButton variant="primary" size="sm" onclick={() => modal.openDeckCreator()}>
-			+ New Deck
-		</TactileButton>
 	</header>
 
 	<!-- Segmented Filter Bar -->
@@ -126,23 +108,13 @@
 				</div>
 				<h2 class="text-base font-bold text-ink-primary">No Decks Found</h2>
 				<p class="mx-auto mt-1 max-w-xs text-xs leading-relaxed text-ink-secondary">
-					No {activeFilter !== 'all' ? activeFilter : ''} decks exist yet. Create your first deck to start
-					organizing your Korean flashcards.
+					No {activeFilter !== 'all' ? activeFilter : ''} decks available currently.
 				</p>
-				<div class="mt-5 inline-block">
-					<TactileButton variant="primary" size="sm" onclick={() => modal.openDeckCreator()}>
-						+ Create First Deck
-					</TactileButton>
-				</div>
 			</div>
 		{:else}
 			<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
 				{#each filteredDecks as deck (deck.id)}
-					<DeckCard
-						{deck}
-						onDelete={handleDeleteDeck}
-						onEdit={() => modal.openDeckCreator({ deckToEdit: deck })}
-					/>
+					<DeckCard {deck} />
 				{/each}
 			</div>
 		{/if}

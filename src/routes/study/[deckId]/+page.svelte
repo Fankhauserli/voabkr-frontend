@@ -33,7 +33,8 @@
 					cardApi.getCards(deckId)
 				]);
 				deck = deckData;
-				await studySession.startDeckSession(cardsData, deckId);
+				const deckCards = cardsData.filter((card) => card.deckId === deckId);
+				await studySession.startDeckSession(deckCards, deckId);
 			} catch (err: unknown) {
 				studySession.error = err instanceof Error ? err.message : 'Failed to load deck cards';
 			} finally {
@@ -113,11 +114,11 @@
 					Add vocabulary or grammar cards to start practicing.
 				</p>
 				<div class="mt-6 flex flex-col gap-2">
-					<button type="button" onclick={() => modal.openCardCreator({ deckId })} class="w-full">
-						<TactileButton variant="primary" fullWidth>+ Add Card</TactileButton>
-					</button>
 					<a href="/decks/{deckId}" class="block">
-						<TactileButton variant="secondary" fullWidth>Return to Deck</TactileButton>
+						<TactileButton variant="primary" fullWidth>Return to Deck</TactileButton>
+					</a>
+					<a href="/decks" class="block">
+						<TactileButton variant="secondary" fullWidth>Browse Other Decks</TactileButton>
 					</a>
 				</div>
 			</div>

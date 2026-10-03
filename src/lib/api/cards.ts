@@ -3,7 +3,10 @@ import type { ApiResponse, Card, CreateCardRequest, UpdateCardRequest } from '$l
 
 export const cardApi = {
 	getCards: (deckId?: number) => {
-		const query = deckId !== undefined ? `?deckId=${encodeURIComponent(deckId)}` : '';
+		const query =
+			deckId !== undefined
+				? `?deck_id=${encodeURIComponent(deckId)}&deckId=${encodeURIComponent(deckId)}`
+				: '';
 		return apiFetch<Card[]>(`/cards/${query}`);
 	},
 

@@ -6,11 +6,9 @@
 
 	interface Props {
 		card: Card;
-		onEdit?: (card: Card) => void;
-		onDelete?: (id: number) => void;
 	}
 
-	let { card, onEdit, onDelete }: Props = $props();
+	let { card }: Props = $props();
 
 	let isAddingReview = $state(false);
 	let isAddedLocally = $state(false);
@@ -30,19 +28,10 @@
 			isAddingReview = false;
 		}
 	}
-
-	function handleEditClick() {
-		selectionClick();
-		onEdit?.(card);
-	}
 </script>
 
 <div
-	role="button"
-	tabindex="0"
-	onclick={handleEditClick}
-	onkeydown={(e) => e.key === 'Enter' && handleEditClick()}
-	class="flex w-full cursor-pointer items-center justify-between gap-3 rounded-xl border border-border-subtle bg-surface p-3.5 text-left shadow-xs transition hover:border-border-strong active:scale-[0.99]"
+	class="flex w-full items-center justify-between gap-3 rounded-xl border border-border-subtle bg-surface p-3.5 text-left shadow-xs transition hover:border-border-strong"
 >
 	<div class="min-w-0 flex-1">
 		<div class="flex items-baseline gap-2">
@@ -87,34 +76,6 @@
 			>
 				✓
 			</span>
-		{/if}
-
-		{#if onDelete}
-			<button
-				type="button"
-				onclick={(e) => {
-					e.stopPropagation();
-					selectionClick();
-					onDelete(card.id);
-				}}
-				class="p-1 text-ink-muted transition hover:text-crimson"
-				aria-label="Delete card"
-			>
-				<svg
-					xmlns="http://www.w3.org/2000/svg"
-					class="h-4 w-4"
-					fill="none"
-					viewBox="0 0 24 24"
-					stroke="currentColor"
-				>
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-					/>
-				</svg>
-			</button>
 		{/if}
 	</div>
 </div>

@@ -37,9 +37,10 @@ class StudySessionStore {
 		try {
 			const dueCards = await reviewApi.getDueCards(deckId);
 			this.sessionStartedAt = new SvelteDate().toISOString();
-			dueCards.forEach((c) => this.seenCardIds.add(c.id));
-			this.cards = dueCards;
-			return dueCards.length > 0;
+			const filtered = deckId ? dueCards.filter((c) => c.deckId === deckId) : dueCards;
+			filtered.forEach((c) => this.seenCardIds.add(c.id));
+			this.cards = filtered;
+			return filtered.length > 0;
 		} catch (err: unknown) {
 			this.error = err instanceof Error ? err.message : 'Failed to fetch due review cards';
 			return false;
@@ -48,13 +49,14 @@ class StudySessionStore {
 		}
 	}
 
-	/** Used by /study/[deckId] which pre-fetches ALL cards in a deck (not just due). */
+	/** Used by /study/[deckId] which pre-fetches cards in a deck. */
 	async startDeckSession(deckCards: Card[], deckId?: number): Promise<void> {
 		this.reset();
 		this.sessionDeckId = deckId ?? null;
 		this.sessionStartedAt = new SvelteDate().toISOString();
-		deckCards.forEach((c) => this.seenCardIds.add(c.id));
-		this.cards = deckCards;
+		const filtered = deckId ? deckCards.filter((c) => c.deckId === deckId) : deckCards;
+		filtered.forEach((c) => this.seenCardIds.add(c.id));
+		this.cards = filtered;
 	}
 
 	flipCard(): void {
@@ -80,7 +82,6 @@ class StudySessionStore {
 		// After advancing, check if cards rated "Again" (ease 1) or "Hard" (ease 2)
 		// have come back due — Anki re-queues them in the same session.
 		// We poll /reviews/since/<sessionStart> to catch cards now due again.
-		// Only do this if there are no remaining unseen cards or we're near the end.
 		await this.pollForRequeued();
 
 		if (this.currentIndex >= this.totalCards) {
@@ -91,7 +92,7 @@ class StudySessionStore {
 	/**
 	 * Poll the backend for cards that became due after the session started
 	 * (i.e. cards rated "Again" that the backend scheduled 1–10 minutes out).
-	 * Appends any unseen ones to the end of the queue.
+	 * Appends any cards due again that aren't already pending in the upcoming queue.
 	 */
 	private async pollForRequeued(): Promise<void> {
 		if (!this.sessionStartedAt) return;
@@ -101,8 +102,11 @@ class StudySessionStore {
 				this.sessionDeckId ?? undefined
 			);
 			for (const card of fresh) {
-				if (!this.seenCardIds.has(card.id)) {
-					this.seenCardIds.add(card.id);
+				if (this.sessionDeckId !== null && card.deckId !== this.sessionDeckId) {
+					continue;
+				}
+				const isAlreadyPending = this.cards.slice(this.currentIndex).some((c) => c.id === card.id);
+				if (!isAlreadyPending) {
 					this.cards = [...this.cards, card];
 				}
 			}

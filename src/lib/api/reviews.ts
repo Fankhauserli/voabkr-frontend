@@ -3,12 +3,12 @@ import type { ApiResponse, Card, SM2Rating } from '$lib/types';
 
 export const reviewApi = {
 	getDueCards: (deckId?: number) => {
-		const qs = deckId ? `?deck_id=${deckId}` : '';
+		const qs = deckId ? `?deck_id=${deckId}&deckId=${deckId}` : '';
 		return apiFetch<Card[]>(`/reviews/${qs}`);
 	},
 
 	getCardsSince: (timestamp: string, deckId?: number) => {
-		const qs = deckId ? `?deck_id=${deckId}` : '';
+		const qs = deckId ? `?deck_id=${deckId}&deckId=${deckId}` : '';
 		return apiFetch<Card[]>(`/reviews/since/${encodeURIComponent(timestamp)}${qs}`);
 	},
 

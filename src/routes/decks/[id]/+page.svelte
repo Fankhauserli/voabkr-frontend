@@ -3,7 +3,6 @@
 	import { page } from '$app/state';
 	import { deckApi } from '$lib/api/decks';
 	import { cardApi } from '$lib/api/cards';
-	import { modal } from '$lib/stores/modal.svelte';
 	import { toast } from '$lib/stores/toast.svelte';
 	import type { Deck, Card } from '$lib/types';
 	import DeckTypeBadge from '$lib/components/decks/DeckTypeBadge.svelte';
@@ -30,22 +29,11 @@
 				cardApi.getCards(deckId)
 			]);
 			deck = deckData;
-			cards = cardsData;
+			cards = cardsData.filter((card) => card.deckId === deckId);
 		} catch (err: unknown) {
 			toast.error(err instanceof Error ? err.message : 'Failed to load deck');
 		} finally {
 			isLoading = false;
-		}
-	}
-
-	async function handleDeleteCard(cardId: number) {
-		if (!confirm('Are you sure you want to delete this card?')) return;
-		try {
-			await cardApi.deleteCard(cardId);
-			cards = cards.filter((c) => c.id !== cardId);
-			toast.success('Card removed');
-		} catch (err: unknown) {
-			toast.error(err instanceof Error ? err.message : 'Failed to delete card');
 		}
 	}
 
@@ -154,47 +142,13 @@
 						? 'No cards match your search query.'
 						: 'This deck currently has no flashcards.'}
 				</p>
-				<div class="mt-4">
-					<TactileButton
-						variant="primary"
-						size="sm"
-						onclick={() => modal.openCardCreator({ deckId })}
-					>
-						+ Add First Card
-					</TactileButton>
-				</div>
 			</div>
 		{:else}
 			<div class="flex flex-col gap-2.5">
 				{#each filteredCards as card (card.id)}
-					<CardListItem
-						{card}
-						onEdit={(c) => modal.openCardCreator({ deckId, cardToEdit: c })}
-						onDelete={handleDeleteCard}
-					/>
+					<CardListItem {card} />
 				{/each}
 			</div>
 		{/if}
 	</main>
-
-	<!-- Fixed Floating Action Button (FAB) for rapid card creation -->
-	<div class="fixed right-6 bottom-6 z-30" style="padding-bottom: var(--safe-bottom);">
-		<button
-			type="button"
-			onclick={() => modal.openCardCreator({ deckId })}
-			class="flex h-14 w-14 items-center justify-center rounded-2xl border border-terracotta bg-terracotta text-white shadow-lg transition active:scale-95"
-			aria-label="Add new flashcard"
-		>
-			<svg
-				xmlns="http://www.w3.org/2000/svg"
-				class="h-7 w-7"
-				fill="none"
-				viewBox="0 0 24 24"
-				stroke="currentColor"
-				stroke-width="2.5"
-			>
-				<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-			</svg>
-		</button>
-	</div>
 </div>
