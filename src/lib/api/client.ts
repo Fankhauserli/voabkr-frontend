@@ -1,8 +1,26 @@
+import { Capacitor } from '@capacitor/core';
 import type { ApiErrorResponse } from '$lib/types';
 
-const API_BASE_URL =
-	(typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) ||
-	'http://localhost:8080/api/v1';
+export function getApiBaseUrl(): string {
+	// Explicit build-time or runtime environment override
+	if (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) {
+		return import.meta.env.VITE_API_URL;
+	}
+	// Native Capacitor mobile shell (Android / iOS)
+	if (typeof window !== 'undefined' && Capacitor.isNativePlatform()) {
+		return 'https://vocabkr.voyagera.ch/api/v1';
+	}
+	// Node server-side environment (e.g. SSR inside Kubernetes cluster)
+	if (typeof window === 'undefined') {
+		const backendUrl =
+			(typeof process !== 'undefined' && process.env?.BACKEND_URL) || 'http://localhost:8080';
+		return `${backendUrl}/api/v1`;
+	}
+	// Web browser (both production HTTPS and Vite local dev server with /api proxy)
+	return '/api/v1';
+}
+
+const API_BASE_URL = getApiBaseUrl();
 
 export class ApiError extends Error {
 	constructor(
