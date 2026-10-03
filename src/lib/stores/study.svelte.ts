@@ -2,10 +2,7 @@ import type { Card, SM2Rating, StudySessionSummary } from '$lib/types';
 import { reviewApi } from '$lib/api/reviews';
 import { reviewSync } from './syncQueue.svelte';
 import { hapticFeedback } from '$lib/utils/haptics';
-import {
-    SvelteDate,
-    SvelteSet,
-} from 'svelte/reactivity';
+import { SvelteDate, SvelteSet } from 'svelte/reactivity';
 class StudySessionStore {
 	cards = $state<Card[]>([]);
 	currentIndex = $state<number>(0);
