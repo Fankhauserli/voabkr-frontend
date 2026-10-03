@@ -2,8 +2,10 @@ import type { Card, SM2Rating, StudySessionSummary } from '$lib/types';
 import { reviewApi } from '$lib/api/reviews';
 import { reviewSync } from './syncQueue.svelte';
 import { hapticFeedback } from '$lib/utils/haptics';
-import { SvelteDate } from 'svelte/reactivity';
-
+import {
+    SvelteDate,
+    SvelteSet,
+} from 'svelte/reactivity';
 class StudySessionStore {
 	cards = $state<Card[]>([]);
 	currentIndex = $state<number>(0);
@@ -17,7 +19,7 @@ class StudySessionStore {
 	private sessionStartedAt = $state<string | null>(null);
 
 	/** IDs already seen/queued in this session (prevents double-adding). */
-	private seenCardIds = $state<Set<number>>(new Set());
+	private seenCardIds = $state<Set<number>>(new SvelteSet());
 
 	/** Whether this is a deck-scoped session (null = global due queue). */
 	private sessionDeckId = $state<number | null>(null);
@@ -37,7 +39,7 @@ class StudySessionStore {
 		this.sessionDeckId = deckId ?? null;
 		try {
 			const dueCards = await reviewApi.getDueCards(deckId);
-			this.sessionStartedAt = new Date().toISOString();
+			this.sessionStartedAt = new SvelteDate().toISOString();
 			dueCards.forEach((c) => this.seenCardIds.add(c.id));
 			this.cards = dueCards;
 			return dueCards.length > 0;
@@ -53,7 +55,7 @@ class StudySessionStore {
 	async startDeckSession(deckCards: Card[], deckId?: number): Promise<void> {
 		this.reset();
 		this.sessionDeckId = deckId ?? null;
-		this.sessionStartedAt = new Date().toISOString();
+		this.sessionStartedAt = new SvelteDate().toISOString();
 		deckCards.forEach((c) => this.seenCardIds.add(c.id));
 		this.cards = deckCards;
 	}
@@ -150,7 +152,7 @@ class StudySessionStore {
 		this.error = null;
 		this.ratingsRecorded = [];
 		this.sessionStartedAt = null;
-		this.seenCardIds = new Set();
+		this.seenCardIds = new SvelteSet();
 		this.sessionDeckId = null;
 	}
 }
