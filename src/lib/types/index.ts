@@ -83,15 +83,26 @@ export interface RegisterRequestBody {
 
 export interface RegisterRequest extends RegisterRequestBody {}
 
+
 /**
- * SuperMemo SM-2 Rating Scale (0 to 5)
+ * Anki-style 4-button rating mapped onto SM-2 ease values.
+ *   1 = Again  (forgotten – re-shows in minutes this session)
+ *   2 = Hard   (recalled with difficulty)
+ *   3 = Good   (recalled correctly)
+ *   4 = Easy   (effortless recall)
+ * Values 0 and 5 are kept in the union for backward-compat but are
+ * not exposed in the UI.
  */
 export type SM2Rating = 0 | 1 | 2 | 3 | 4 | 5;
 
+/** The 4 rating levels shown to the user. */
+export type AnkiRating = 1 | 2 | 3 | 4;
+
 export interface SM2RatingMeta {
-	ease: SM2Rating;
+	ease: AnkiRating;
 	label: string;
-	shortDescription: string;
+	/** Short hint shown under the label, e.g. "<1 min" */
+	nextHint: string;
 	colorLight: {
 		bg: string;
 		border: string;
@@ -105,49 +116,33 @@ export interface SM2RatingMeta {
 
 export const SM2_RATINGS_CONFIG: readonly SM2RatingMeta[] = [
 	{
-		ease: 0,
-		label: 'Blackout',
-		shortDescription: 'Completely forgotten',
+		ease: 1,
+		label: 'Again',
+		nextHint: '< 1 min',
 		colorLight: { bg: '#FDF2F2', border: '#E88080' },
 		colorDark: { bg: '#331818', border: '#8A2E2E' },
 		hapticType: 'warning'
 	},
 	{
-		ease: 1,
-		label: 'Wrong',
-		shortDescription: 'Remembered on reveal',
-		colorLight: { bg: '#FDF5F2', border: '#E8A280' },
-		colorDark: { bg: '#332018', border: '#8A4A2E' },
-		hapticType: 'warning'
-	},
-	{
 		ease: 2,
-		label: 'Hard-Wrong',
-		shortDescription: 'Almost recalled',
+		label: 'Hard',
+		nextHint: '< 6 min',
 		colorLight: { bg: '#FEF9EE', border: '#E8CA80' },
 		colorDark: { bg: '#332B18', border: '#8A722E' },
 		hapticType: 'warning'
 	},
 	{
 		ease: 3,
-		label: 'Hard',
-		shortDescription: 'Correct, serious difficulty',
-		colorLight: { bg: '#FEFCF0', border: '#D6D47A' },
-		colorDark: { bg: '#303318', border: '#7D802B' },
-		hapticType: 'medium'
-	},
-	{
-		ease: 4,
 		label: 'Good',
-		shortDescription: 'Correct with hesitation',
+		nextHint: '10 min',
 		colorLight: { bg: '#F0F8F5', border: '#80CCA8' },
 		colorDark: { bg: '#183328', border: '#2E805A' },
 		hapticType: 'medium'
 	},
 	{
-		ease: 5,
+		ease: 4,
 		label: 'Easy',
-		shortDescription: 'Perfect, instant recall',
+		nextHint: '4 days',
 		colorLight: { bg: '#EBF5F3', border: '#60B69F' },
 		colorDark: { bg: '#152B24', border: '#266B59' },
 		hapticType: 'success'

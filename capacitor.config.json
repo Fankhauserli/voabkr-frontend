@@ -1,6 +1,6 @@
 {
-	"appId": "com.voabkr.app",
-	"appName": "voabkr",
+	"appId": "com.voyagera.vocabkr",
+	"appName": "vocabkr",
 	"webDir": "build",
 	"bundledWebRuntime": false,
 	"server": {

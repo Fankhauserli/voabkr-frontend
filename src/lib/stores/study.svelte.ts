@@ -13,6 +13,15 @@ class StudySessionStore {
 	ratingsRecorded = $state<{ cardId: number; ease: SM2Rating }[]>([]);
 	lastSessionSummary = $state<StudySessionSummary | null>(null);
 
+	/** ISO timestamp recorded when the session started. Used for /since polling. */
+	private sessionStartedAt = $state<string | null>(null);
+
+	/** IDs already seen/queued in this session (prevents double-adding). */
+	private seenCardIds = $state<Set<number>>(new Set());
+
+	/** Whether this is a deck-scoped session (null = global due queue). */
+	private sessionDeckId = $state<number | null>(null);
+
 	// Derived state runes
 	totalCards = $derived(this.cards.length);
 	currentCard = $derived(this.cards[this.currentIndex] ?? null);
@@ -22,11 +31,14 @@ class StudySessionStore {
 	isSessionFinished = $derived(this.totalCards > 0 && this.currentIndex >= this.totalCards);
 	isActive = $derived(this.totalCards > 0 && !this.isSessionFinished);
 
-	async startDueSession(): Promise<boolean> {
+	async startDueSession(deckId?: number): Promise<boolean> {
 		this.reset();
 		this.isLoading = true;
+		this.sessionDeckId = deckId ?? null;
 		try {
-			const dueCards = await reviewApi.getDueCards();
+			const dueCards = await reviewApi.getDueCards(deckId);
+			this.sessionStartedAt = new Date().toISOString();
+			dueCards.forEach((c) => this.seenCardIds.add(c.id));
 			this.cards = dueCards;
 			return dueCards.length > 0;
 		} catch (err: unknown) {
@@ -37,8 +49,12 @@ class StudySessionStore {
 		}
 	}
 
-	async startDeckSession(deckCards: Card[]): Promise<void> {
+	/** Used by /study/[deckId] which pre-fetches ALL cards in a deck (not just due). */
+	async startDeckSession(deckCards: Card[], deckId?: number): Promise<void> {
 		this.reset();
+		this.sessionDeckId = deckId ?? null;
+		this.sessionStartedAt = new Date().toISOString();
+		deckCards.forEach((c) => this.seenCardIds.add(c.id));
 		this.cards = deckCards;
 	}
 
@@ -62,8 +78,37 @@ class StudySessionStore {
 		this.isFlipped = false;
 		this.currentIndex += 1;
 
+		// After advancing, check if cards rated "Again" (ease 1) or "Hard" (ease 2)
+		// have come back due — Anki re-queues them in the same session.
+		// We poll /reviews/since/<sessionStart> to catch cards now due again.
+		// Only do this if there are no remaining unseen cards or we're near the end.
+		await this.pollForRequeued();
+
 		if (this.currentIndex >= this.totalCards) {
 			this.computeSessionSummary();
+		}
+	}
+
+	/**
+	 * Poll the backend for cards that became due after the session started
+	 * (i.e. cards rated "Again" that the backend scheduled 1–10 minutes out).
+	 * Appends any unseen ones to the end of the queue.
+	 */
+	private async pollForRequeued(): Promise<void> {
+		if (!this.sessionStartedAt) return;
+		try {
+			const fresh = await reviewApi.getCardsSince(
+				this.sessionStartedAt,
+				this.sessionDeckId ?? undefined
+			);
+			for (const card of fresh) {
+				if (!this.seenCardIds.has(card.id)) {
+					this.seenCardIds.add(card.id);
+					this.cards = [...this.cards, card];
+				}
+			}
+		} catch {
+			// Silent – polling is best-effort; session should not break on error
 		}
 	}
 
@@ -104,6 +149,9 @@ class StudySessionStore {
 		this.isLoading = false;
 		this.error = null;
 		this.ratingsRecorded = [];
+		this.sessionStartedAt = null;
+		this.seenCardIds = new Set();
+		this.sessionDeckId = null;
 	}
 }
 

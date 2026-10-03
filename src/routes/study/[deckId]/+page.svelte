@@ -33,7 +33,7 @@
 					cardApi.getCards(deckId)
 				]);
 				deck = deckData;
-				await studySession.startDeckSession(cardsData);
+				await studySession.startDeckSession(cardsData, deckId);
 			} catch (err: unknown) {
 				studySession.error = err instanceof Error ? err.message : 'Failed to load deck cards';
 			} finally {
