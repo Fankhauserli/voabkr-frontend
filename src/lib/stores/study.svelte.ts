@@ -1,4 +1,4 @@
-import type { Card, SM2Rating, StudySessionSummary } from '$lib/types';
+import type { Card, SM2Rating, StudySessionSummary, StudyDirection } from '$lib/types';
 import { reviewApi } from '$lib/api/reviews';
 import { reviewSync } from './syncQueue.svelte';
 import { hapticFeedback } from '$lib/utils/haptics';
@@ -11,6 +11,31 @@ class StudySessionStore {
 	error = $state<string | null>(null);
 	ratingsRecorded = $state<{ cardId: number; ease: SM2Rating }[]>([]);
 	lastSessionSummary = $state<StudySessionSummary | null>(null);
+	studyDirection = $state<StudyDirection>('koreanToEnglish');
+
+	constructor() {
+		if (typeof localStorage !== 'undefined') {
+			const saved = localStorage.getItem('voabkr_study_direction') as StudyDirection | null;
+			if (saved === 'koreanToEnglish' || saved === 'englishToKorean') {
+				this.studyDirection = saved;
+			}
+		}
+	}
+
+	toggleStudyDirection(): void {
+		this.studyDirection =
+			this.studyDirection === 'koreanToEnglish' ? 'englishToKorean' : 'koreanToEnglish';
+		if (typeof localStorage !== 'undefined') {
+			localStorage.setItem('voabkr_study_direction', this.studyDirection);
+		}
+	}
+
+	setStudyDirection(direction: StudyDirection): void {
+		this.studyDirection = direction;
+		if (typeof localStorage !== 'undefined') {
+			localStorage.setItem('voabkr_study_direction', direction);
+		}
+	}
 
 	/** ISO timestamp recorded when the session started. Used for /since polling. */
 	private sessionStartedAt = $state<string | null>(null);

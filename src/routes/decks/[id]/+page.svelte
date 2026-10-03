@@ -50,6 +50,38 @@
 			return true;
 		})
 	);
+
+	const PAGE_SIZE = 30;
+	let visibleCount = $state(PAGE_SIZE);
+	let loadMoreSentinel = $state<HTMLElement | null>(null);
+
+	$effect(() => {
+		// Reset visible card count whenever filters or search query changes
+		if (searchQuery !== undefined || filterQueueOnly !== undefined) {
+			visibleCount = PAGE_SIZE;
+		}
+	});
+
+	let visibleCards = $derived(filteredCards.slice(0, visibleCount));
+	let hasMore = $derived(visibleCount < filteredCards.length);
+
+	function loadMore() {
+		visibleCount = Math.min(visibleCount + PAGE_SIZE, filteredCards.length);
+	}
+
+	$effect(() => {
+		if (!loadMoreSentinel || typeof IntersectionObserver === 'undefined') return;
+		const observer = new IntersectionObserver(
+			(entries) => {
+				if (entries[0]?.isIntersecting && hasMore) {
+					loadMore();
+				}
+			},
+			{ rootMargin: '200px' }
+		);
+		observer.observe(loadMoreSentinel);
+		return () => observer.disconnect();
+	});
 </script>
 
 <svelte:head>
@@ -145,10 +177,23 @@
 			</div>
 		{:else}
 			<div class="flex flex-col gap-2.5">
-				{#each filteredCards as card (card.id)}
+				{#each visibleCards as card (card.id)}
 					<CardListItem {card} />
 				{/each}
 			</div>
+
+			{#if hasMore}
+				<div class="mt-4 flex flex-col items-center justify-center gap-2">
+					<div bind:this={loadMoreSentinel} class="h-6 w-full"></div>
+					<button
+						type="button"
+						onclick={loadMore}
+						class="rounded-xl border border-border-strong bg-surface px-4 py-2 text-xs font-semibold text-ink-secondary transition hover:border-terracotta hover:text-terracotta active:scale-95"
+					>
+						Load more ({visibleCards.length} of {filteredCards.length} cards)
+					</button>
+				</div>
+			{/if}
 		{/if}
 	</main>
 </div>

@@ -27,17 +27,17 @@
 			]);
 
 			if (cardsResult.status === 'fulfilled') {
-				dueCards = cardsResult.value;
+				dueCards = Array.isArray(cardsResult.value) ? cardsResult.value : [];
 			}
 			if (decksResult.status === 'fulfilled') {
-				decks = decksResult.value;
+				decks = Array.isArray(decksResult.value) ? decksResult.value : [];
 			}
 		} finally {
 			isLoading = false;
 		}
 	}
 
-	let dueCount = $derived(dueCards.length);
+	let dueCount = $derived(dueCards?.length ?? 0);
 	let targetGoal = $derived(auth.cardsPerDay || 20);
 	let completedToday = $derived(Math.max(0, targetGoal - dueCount));
 	let goalPercentage = $derived(
@@ -45,11 +45,13 @@
 	);
 
 	let vocabDue = $derived(
-		dueCards.filter(
-			(c) => c.context.toLowerCase().includes('noun') || !c.context.toLowerCase().includes('ending')
+		(dueCards ?? []).filter(
+			(c) =>
+				(c.context || '').toLowerCase().includes('noun') ||
+				!(c.context || '').toLowerCase().includes('ending')
 		).length
 	);
-	let grammarDue = $derived(dueCards.length - vocabDue);
+	let grammarDue = $derived(Math.max(0, dueCount - vocabDue));
 
 	let userInitial = $derived(auth.userName ? auth.userName[0].toUpperCase() : 'V');
 </script>

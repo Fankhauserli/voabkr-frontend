@@ -97,6 +97,9 @@ export type SM2Rating = 0 | 1 | 2 | 3 | 4 | 5;
 /** The 4 rating levels shown to the user. */
 export type AnkiRating = 1 | 2 | 3 | 4;
 
+/** Study direction: prompt in Korean and recall English, or vice-versa. */
+export type StudyDirection = 'koreanToEnglish' | 'englishToKorean';
+
 export interface SM2RatingMeta {
 	ease: AnkiRating;
 	label: string;

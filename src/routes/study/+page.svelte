@@ -68,11 +68,19 @@
 				✕
 			</button>
 
-			<div class="text-center">
-				<span class="text-xs font-bold tracking-wider text-ink-secondary uppercase">
-					Spaced Repetition (SM-2)
-				</span>
-			</div>
+			<button
+				type="button"
+				onclick={() => studySession.toggleStudyDirection()}
+				class="flex items-center gap-1.5 rounded-xl border border-border-subtle bg-surface px-3 py-1.5 text-xs font-bold text-ink-primary transition hover:border-terracotta active:scale-95"
+				title="Switch learning direction"
+				aria-label="Toggle learning direction"
+			>
+				{#if studySession.studyDirection === 'koreanToEnglish'}
+					<span>🇰🇷 한국어 ➔ 🇬🇧 EN</span>
+				{:else}
+					<span>🇬🇧 EN ➔ 🇰🇷 한국어</span>
+				{/if}
+			</button>
 
 			<div class="h-11 w-11"></div>
 		</div>
@@ -120,6 +128,7 @@
 				context={studySession.currentCard.context}
 				example={studySession.currentCard.example}
 				isFlipped={studySession.isFlipped}
+				direction={studySession.studyDirection}
 				onFlip={() => studySession.flipCard()}
 			/>
 		{/if}

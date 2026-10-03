@@ -3,6 +3,7 @@
 	import { auth } from '$lib/stores/auth.svelte';
 	import { authApi } from '$lib/api/auth';
 	import { reviewSync } from '$lib/stores/syncQueue.svelte';
+	import { studySession } from '$lib/stores/study.svelte';
 	import { toast } from '$lib/stores/toast.svelte';
 	import { setStatusBarTheme } from '$lib/utils/statusBar';
 	import { selectionClick } from '$lib/utils/haptics';
@@ -192,6 +193,48 @@
 							{count}
 						</button>
 					{/each}
+				</div>
+
+				<!-- Study Direction selector -->
+				<div class="mt-4 border-t border-border-subtle pt-3">
+					<span class="mb-1 block text-xs font-semibold text-ink-primary">
+						Default Flashcard Direction (학습 방향)
+					</span>
+					<p class="mb-3 text-xs leading-relaxed text-ink-secondary">
+						Choose whether flashcards prompt you with Korean (recall English) or English (recall
+						Korean).
+					</p>
+
+					<div class="grid grid-cols-2 gap-2 select-none">
+						<button
+							type="button"
+							onclick={() => {
+								selectionClick();
+								studySession.setStudyDirection('koreanToEnglish');
+							}}
+							class="flex min-h-[48px] flex-col items-center justify-center rounded-xl border p-2 text-xs font-bold transition active:scale-95 {studySession.studyDirection ===
+							'koreanToEnglish'
+								? 'border-terracotta bg-terracotta text-white shadow-xs'
+								: 'border-border-subtle bg-canvas text-ink-secondary hover:text-ink-primary'}"
+						>
+							<span>🇰🇷 한국어 ➔ 🇬🇧 EN</span>
+							<span class="mt-0.5 text-[10px] font-normal opacity-80">Korean Prompt</span>
+						</button>
+						<button
+							type="button"
+							onclick={() => {
+								selectionClick();
+								studySession.setStudyDirection('englishToKorean');
+							}}
+							class="flex min-h-[48px] flex-col items-center justify-center rounded-xl border p-2 text-xs font-bold transition active:scale-95 {studySession.studyDirection ===
+							'englishToKorean'
+								? 'border-terracotta bg-terracotta text-white shadow-xs'
+								: 'border-border-subtle bg-canvas text-ink-secondary hover:text-ink-primary'}"
+						>
+							<span>🇬🇧 EN ➔ 🇰🇷 한국어</span>
+							<span class="mt-0.5 text-[10px] font-normal opacity-80">English Prompt</span>
+						</button>
+					</div>
 				</div>
 			</div>
 		</section>

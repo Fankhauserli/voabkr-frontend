@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { cardFlip } from '$lib/utils/haptics';
+	import type { StudyDirection } from '$lib/types';
 
 	interface Props {
 		koreanWord: string;
@@ -8,6 +9,7 @@
 		example?: string;
 		isFlipped?: boolean;
 		onFlip?: () => void;
+		direction?: StudyDirection;
 	}
 
 	let {
@@ -16,8 +18,21 @@
 		context = '',
 		example = '',
 		isFlipped = false,
-		onFlip
+		onFlip,
+		direction = 'koreanToEnglish'
 	}: Props = $props();
+
+	let promptWord = $derived(direction === 'englishToKorean' ? englishWord : koreanWord);
+	let answerWord = $derived(direction === 'englishToKorean' ? koreanWord : englishWord);
+	let promptLabel = $derived(
+		context || (direction === 'englishToKorean' ? 'English Definition' : 'Korean Word')
+	);
+	let answerSectionTitle = $derived(
+		direction === 'englishToKorean' ? 'Korean / 한국어' : 'English Meaning'
+	);
+	let flipHint = $derived(
+		direction === 'englishToKorean' ? '터치하여 한국어 정답 확인' : '터치하여 뒤집기'
+	);
 
 	function handleFlip() {
 		cardFlip();
@@ -36,14 +51,14 @@
 	class="flashcard-perspective w-full max-w-sm select-none"
 	role="region"
 	aria-roledescription="flashcard"
-	aria-label={`Flashcard: ${koreanWord}`}
+	aria-label={`Flashcard: ${promptWord}`}
 >
 	<!-- Screen reader dynamic announcements -->
 	<div class="sr-only" aria-live="polite" aria-atomic="true">
 		{#if isFlipped}
-			Answer revealed: {englishWord}. Example sentence: {example}
+			Answer revealed: {answerWord}. Example sentence: {example}
 		{:else}
-			Question: {koreanWord}. Tap card or press spacebar to reveal translation.
+			Question: {promptWord}. Tap card or press spacebar to reveal answer.
 		{/if}
 	</div>
 
@@ -66,21 +81,27 @@
 				<span
 					class="rounded-md border border-border-subtle bg-canvas px-2.5 py-1 text-[11px] font-semibold tracking-wider text-ink-secondary uppercase"
 				>
-					{context || 'Korean Word'}
+					{promptLabel}
 				</span>
 				<span class="text-xs text-ink-muted">Tap to flip ↺</span>
 			</div>
 
 			<div class="my-auto flex flex-col items-center justify-center text-center">
-				<h2
-					class="hangul-text text-4xl font-bold tracking-tight break-keep text-ink-primary sm:text-5xl"
-				>
-					{koreanWord}
-				</h2>
+				{#if direction === 'englishToKorean'}
+					<h2 class="text-3xl font-bold tracking-tight break-keep text-ink-primary sm:text-4xl">
+						{englishWord}
+					</h2>
+				{:else}
+					<h2
+						class="hangul-text text-4xl font-bold tracking-tight break-keep text-ink-primary sm:text-5xl"
+					>
+						{koreanWord}
+					</h2>
+				{/if}
 			</div>
 
 			<div class="flex items-center justify-center">
-				<span class="text-xs text-ink-muted">터치하여 뒤집기</span>
+				<span class="text-xs text-ink-muted">{flipHint}</span>
 			</div>
 		</div>
 
@@ -90,7 +111,7 @@
 		>
 			<div class="flex items-center justify-between border-b border-border-subtle pb-2.5">
 				<span class="text-sm font-semibold break-keep text-ink-secondary">
-					{koreanWord}
+					{promptWord}
 				</span>
 				{#if context}
 					<span
@@ -103,10 +124,18 @@
 
 			<div class="my-auto flex flex-col gap-3">
 				<div>
-					<p class="text-xs font-semibold tracking-wider text-ink-muted uppercase">Meaning</p>
-					<h3 class="text-2xl font-bold tracking-tight text-ink-primary">
-						{englishWord}
-					</h3>
+					<p class="text-xs font-semibold tracking-wider text-ink-muted uppercase">
+						{answerSectionTitle}
+					</p>
+					{#if direction === 'englishToKorean'}
+						<h3 class="hangul-text text-3xl font-bold tracking-tight text-ink-primary">
+							{koreanWord}
+						</h3>
+					{:else}
+						<h3 class="text-2xl font-bold tracking-tight text-ink-primary">
+							{englishWord}
+						</h3>
+					{/if}
 				</div>
 
 				{#if example}
@@ -123,7 +152,7 @@
 
 			<div class="flex items-center justify-between border-t border-border-subtle pt-2">
 				<span class="text-xs text-ink-muted">Rate your recall below</span>
-				<span class="text-xs text-ink-muted">0–5</span>
+				<span class="text-xs text-ink-muted">Again · Hard · Good · Easy</span>
 			</div>
 		</div>
 	</div>
