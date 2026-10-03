@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { authApi } from '$lib/api/auth';
 	import { auth } from '$lib/stores/auth.svelte';
 	import { toast } from '$lib/stores/toast.svelte';
 	import { selectionClick } from '$lib/utils/haptics';
@@ -8,11 +9,15 @@
 	async function handleResend() {
 		selectionClick();
 		isResending = true;
-		// Simulated email resend notification for user
-		setTimeout(() => {
+		try {
+			const res = await authApi.resendVerification();
+			toast.info(res.message || 'Verification link resent. Please check your inbox.');
+		} catch (err: unknown) {
+			const msg = err instanceof Error ? err.message : 'Failed to resend verification email.';
+			toast.error(msg);
+		} finally {
 			isResending = false;
-			toast.info('Verification link resent. Please check your inbox.');
-		}, 800);
+		}
 	}
 </script>
 

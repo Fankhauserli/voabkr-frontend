@@ -3,10 +3,27 @@
 	import { page } from '$app/state';
 	import { authApi } from '$lib/api/auth';
 	import { auth } from '$lib/stores/auth.svelte';
+	import { toast } from '$lib/stores/toast.svelte';
+	import { selectionClick } from '$lib/utils/haptics';
 	import TactileButton from '$lib/components/forms/TactileButton.svelte';
 
 	let status = $state<'verifying' | 'success' | 'error'>('verifying');
 	let errorMessage = $state<string | null>(null);
+	let isResending = $state(false);
+
+	async function handleResend() {
+		selectionClick();
+		isResending = true;
+		try {
+			const res = await authApi.resendVerification();
+			toast.info(res.message || 'Verification link resent. Please check your inbox.');
+		} catch (err: unknown) {
+			const msg = err instanceof Error ? err.message : 'Failed to resend verification email.';
+			toast.error(msg);
+		} finally {
+			isResending = false;
+		}
+	}
 
 	onMount(async () => {
 		const token = page.url.searchParams.get('token');
@@ -76,8 +93,22 @@
 					{errorMessage}
 				</p>
 				<div class="mt-6 flex flex-col gap-2">
+					{#if auth.isAuthenticated}
+						<TactileButton
+							variant="primary"
+							fullWidth
+							onclick={handleResend}
+							disabled={isResending}
+						>
+							{isResending ? 'Resending...' : 'Resend Verification Link'}
+						</TactileButton>
+					{:else}
+						<a href="/login" class="block">
+							<TactileButton variant="primary" fullWidth>Log in to Resend</TactileButton>
+						</a>
+					{/if}
 					<a href="/settings" class="block">
-						<TactileButton variant="secondary" fullWidth>Go to Settings to Resend</TactileButton>
+						<TactileButton variant="secondary" fullWidth>Go to Settings</TactileButton>
 					</a>
 					<a href="/" class="block">
 						<TactileButton variant="ghost" fullWidth>Return Home</TactileButton>

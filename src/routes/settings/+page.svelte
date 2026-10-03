@@ -74,10 +74,15 @@
 	async function handleResendVerification() {
 		selectionClick();
 		isResendingEmail = true;
-		setTimeout(() => {
+		try {
+			const res = await authApi.resendVerification();
+			toast.info(res.message || 'Verification link resent to your email address.');
+		} catch (err: unknown) {
+			const msg = err instanceof Error ? err.message : 'Failed to resend verification email.';
+			toast.error(msg);
+		} finally {
 			isResendingEmail = false;
-			toast.info('Verification link resent to your email address.');
-		}, 800);
+		}
 	}
 
 	async function handleLogout() {

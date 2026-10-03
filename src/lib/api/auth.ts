@@ -32,6 +32,12 @@ export const authApi = {
 			method: 'POST'
 		}),
 
+	resendVerification: (email?: string) =>
+		apiFetch<ApiResponse>('/resend-verification', {
+			method: 'POST',
+			...(email ? { body: JSON.stringify({ email }) } : {})
+		}),
+
 	getProfile: () => apiFetch<User>('/user/profile'),
 
 	updateProfile: (data: UpdateProfileRequest) =>
