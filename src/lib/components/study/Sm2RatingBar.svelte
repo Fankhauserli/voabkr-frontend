@@ -11,10 +11,18 @@
 
 	// Keyboard shortcuts: A=Again, H=Hard, G=Good, E=Easy (or 1-4)
 	const keyMap: Record<string, SM2Rating> = {
-		'1': 1, a: 1, A: 1,
-		'2': 2, h: 2, H: 2,
-		'3': 3, g: 3, G: 3,
-		'4': 4, e: 4, E: 4
+		'1': 1,
+		a: 1,
+		A: 1,
+		'2': 2,
+		h: 2,
+		H: 2,
+		'3': 3,
+		g: 3,
+		G: 3,
+		'4': 4,
+		e: 4,
+		E: 4
 	};
 
 	function handleKey(ev: KeyboardEvent) {
@@ -42,7 +50,7 @@
 				style="background-color: {item.colorLight.bg}; border-color: {item.colorLight.border};"
 				aria-label="{item.label} – next in {item.nextHint}"
 			>
-				<span class="text-xs font-bold leading-none">{item.label}</span>
+				<span class="text-xs leading-none font-bold">{item.label}</span>
 				<span class="mt-0.5 text-[10px] leading-tight text-ink-secondary">{item.nextHint}</span>
 			</button>
 		{/each}

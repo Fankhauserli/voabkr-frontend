@@ -83,7 +83,6 @@ export interface RegisterRequestBody {
 
 export interface RegisterRequest extends RegisterRequestBody {}
 
-
 /**
  * Anki-style 4-button rating mapped onto SM-2 ease values.
  *   1 = Again  (forgotten – re-shows in minutes this session)
