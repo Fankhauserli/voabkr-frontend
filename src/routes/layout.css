@@ -1,1 +1,101 @@
 @import 'tailwindcss';
+
+@theme {
+	--color-canvas: var(--bg-canvas);
+	--color-surface: var(--bg-surface);
+	--color-surface-elevated: var(--bg-surface-elevated);
+
+	--color-border-subtle: var(--border-subtle);
+	--color-border-strong: var(--border-strong);
+
+	--color-ink-primary: var(--text-primary);
+	--color-ink-secondary: var(--text-secondary);
+	--color-ink-muted: var(--text-muted);
+
+	--color-terracotta: var(--accent-terracotta);
+	--color-celadon: var(--accent-celadon);
+	--color-navy: var(--accent-navy);
+	--color-amber: var(--accent-amber);
+	--color-crimson: var(--accent-crimson);
+
+	--font-hangul: 'Pretendard', 'Noto Sans KR', system-ui, sans-serif;
+	--font-sans: 'Pretendard', 'Inter', system-ui, sans-serif;
+}
+
+:root {
+	/* Light Theme (Warm Hanji Notebook) */
+	--bg-canvas: #f8f6f0;
+	--bg-surface: #ffffff;
+	--bg-surface-elevated: #f1efea;
+	--border-subtle: #e5e0d6;
+	--border-strong: #c8c1b4;
+	--text-primary: #1a1917;
+	--text-secondary: #5c5850;
+	--text-muted: #8c867a;
+	--accent-terracotta: #c85232;
+	--accent-celadon: #2d6a5d;
+	--accent-navy: #1e3a5f;
+	--accent-amber: #c88325;
+	--accent-crimson: #b83232;
+
+	/* Safe areas */
+	--safe-top: env(safe-area-inset-top, 0px);
+	--safe-bottom: env(safe-area-inset-bottom, 0px);
+	--nav-bar-height: 64px;
+}
+
+.dark {
+	/* Dark Theme (Sumi Ink Night) */
+	--bg-canvas: #121211;
+	--bg-surface: #1b1a18;
+	--bg-surface-elevated: #262522;
+	--border-subtle: #2d2b27;
+	--border-strong: #45423c;
+	--text-primary: #ede9e1;
+	--text-secondary: #a6a094;
+	--text-muted: #686359;
+	--accent-terracotta: #de6a48;
+	--accent-celadon: #4e9b89;
+	--accent-navy: #5384b8;
+	--accent-amber: #df9d38;
+	--accent-crimson: #e05252;
+}
+
+body {
+	background-color: var(--bg-canvas);
+	color: var(--text-primary);
+	font-family: var(--font-sans);
+	margin: 0;
+	padding: 0;
+	-webkit-tap-highlight-color: transparent;
+	user-select: none;
+}
+
+/* 3D Flashcard mechanics */
+.flashcard-perspective {
+	perspective: 1000px;
+}
+
+.flashcard-inner {
+	transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+	transform-style: preserve-3d;
+}
+
+.flashcard-inner.is-flipped {
+	transform: rotateY(180deg);
+}
+
+.flashcard-face {
+	backface-visibility: hidden;
+	-webkit-backface-visibility: hidden;
+}
+
+.flashcard-back {
+	transform: rotateY(180deg);
+}
+
+/* Hangul Typography Rule */
+.hangul-text {
+	word-break: keep-all;
+	overflow-wrap: break-word;
+}

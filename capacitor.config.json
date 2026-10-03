@@ -1,0 +1,23 @@
+{
+	"appId": "com.voabkr.app",
+	"appName": "voabkr",
+	"webDir": "build",
+	"bundledWebRuntime": false,
+	"server": {
+		"androidScheme": "https",
+		"cleartext": false
+	},
+	"plugins": {
+		"SplashScreen": {
+			"launchShowDuration": 1500,
+			"backgroundColor": "#F8F6F0",
+			"androidSplashResourceName": "splash"
+		},
+		"CapacitorCookies": {
+			"enabled": true
+		},
+		"CapacitorHttp": {
+			"enabled": true
+		}
+	}
+}

@@ -1,114 +1,50 @@
-export interface LoginRequestBody {
-	email: string;
-	password: string;
-}
+import { apiFetch } from './client';
+import type {
+	ApiResponse,
+	LoginRequest,
+	RegisterRequest,
+	UpdateProfileRequest,
+	UpdateSettingsRequest,
+	User,
+	UserSettings
+} from '$lib/types';
 
-export interface RegisterRequestBody {
-	name: string;
-	email: string;
-	password: string;
-}
-
-export interface AuthSuccessResponse {
-	message: string;
-}
-
-export interface AuthErrorResponse {
-	error: string;
-}
-
-export type AuthResult<T = AuthSuccessResponse> =
-	{ success: true; data: T } | { success: false; error: string; status?: number };
-
-// In dev, Vite proxy forwards /api to http://localhost:8080.
-// If VITE_API_URL is configured, it will prepend it; otherwise default to relative path.
-const API_BASE = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') || '';
-
-async function handleResponse<T>(response: Response): Promise<AuthResult<T>> {
-	let data: unknown;
-	try {
-		data = await response.json();
-	} catch {
-		data = null;
-	}
-
-	if (!response.ok) {
-		const errorMessage =
-			data &&
-			typeof data === 'object' &&
-			'error' in data &&
-			typeof (data as Record<string, unknown>).error === 'string'
-				? ((data as Record<string, unknown>).error as string)
-				: response.statusText || 'An unexpected error occurred';
-		return { success: false, error: errorMessage, status: response.status };
-	}
-
-	return { success: true, data: data as T };
-}
-
-/**
- * Log in with email and password.
- * Backend: POST /api/v1/login
- */
-export async function login(body: LoginRequestBody): Promise<AuthResult> {
-	try {
-		const res = await fetch(`${API_BASE}/api/v1/login`, {
+export const authApi = {
+	login: (data: LoginRequest) =>
+		apiFetch<ApiResponse>('/login', {
 			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				Accept: 'application/json'
-			},
-			credentials: 'include',
-			body: JSON.stringify(body)
-		});
-		return await handleResponse<AuthSuccessResponse>(res);
-	} catch (err) {
-		const message =
-			err instanceof Error ? err.message : 'Unable to connect to the authentication server';
-		return { success: false, error: message };
-	}
-}
+			body: JSON.stringify(data)
+		}),
 
-/**
- * Register a new user with name, email, and password.
- * Backend: POST /api/v1/register
- */
-export async function register(body: RegisterRequestBody): Promise<AuthResult> {
-	try {
-		const res = await fetch(`${API_BASE}/api/v1/register`, {
+	register: (data: RegisterRequest) =>
+		apiFetch<ApiResponse>('/register', {
 			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				Accept: 'application/json'
-			},
-			credentials: 'include',
-			body: JSON.stringify(body)
-		});
-		return await handleResponse<AuthSuccessResponse>(res);
-	} catch (err) {
-		const message =
-			err instanceof Error ? err.message : 'Unable to connect to the authentication server';
-		return { success: false, error: message };
-	}
-}
+			body: JSON.stringify(data)
+		}),
 
-/**
- * Log out the current session.
- * Backend: POST /api/v1/logout
- */
-export async function logout(): Promise<AuthResult> {
-	try {
-		const res = await fetch(`${API_BASE}/api/v1/logout`, {
-			method: 'POST',
-			headers: {
-				Accept: 'application/json'
-			},
-			credentials: 'include'
-		});
-		return await handleResponse<AuthSuccessResponse>(res);
-	} catch (err) {
-		const message =
-			err instanceof Error ? err.message : 'Unable to connect to the authentication server';
-		return { success: false, error: message };
-	}
-}
+	logout: () =>
+		apiFetch<ApiResponse>('/logout', {
+			method: 'POST'
+		}),
+
+	verifyEmail: (token: string) =>
+		apiFetch<ApiResponse>(`/verification/${encodeURIComponent(token)}`, {
+			method: 'POST'
+		}),
+
+	getProfile: () => apiFetch<User>('/user/profile'),
+
+	updateProfile: (data: UpdateProfileRequest) =>
+		apiFetch<ApiResponse>('/user/profile', {
+			method: 'PUT',
+			body: JSON.stringify(data)
+		}),
+
+	getSettings: () => apiFetch<UserSettings>('/user/settings'),
+
+	updateSettings: (data: UpdateSettingsRequest) =>
+		apiFetch<ApiResponse>('/user/settings', {
+			method: 'PUT',
+			body: JSON.stringify(data)
+		})
+};

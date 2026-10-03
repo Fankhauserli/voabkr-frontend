@@ -1,0 +1,150 @@
+<script lang="ts">
+	import { onMount } from 'svelte';
+	import { deckApi } from '$lib/api/decks';
+	import { modal } from '$lib/stores/modal.svelte';
+	import { toast } from '$lib/stores/toast.svelte';
+	import { selectionClick } from '$lib/utils/haptics';
+	import type { Deck, DeckType } from '$lib/types';
+	import DeckCard from '$lib/components/decks/DeckCard.svelte';
+	import BottomNavBar from '$lib/components/navigation/BottomNavBar.svelte';
+	import TactileButton from '$lib/components/forms/TactileButton.svelte';
+
+	let decks = $state<Deck[]>([]);
+	let activeFilter = $state<'all' | DeckType>('all');
+	let isLoading = $state(true);
+
+	onMount(async () => {
+		await loadDecks();
+	});
+
+	async function loadDecks() {
+		isLoading = true;
+		try {
+			decks = await deckApi.getDecks();
+		} catch {
+			decks = [];
+		} finally {
+			isLoading = false;
+		}
+	}
+
+	async function handleDeleteDeck(deckId: number) {
+		if (!confirm('Are you sure you want to delete this deck?')) return;
+		try {
+			await deckApi.deleteDeck(deckId);
+			decks = decks.filter((d) => d.id !== deckId);
+			toast.success('Deck deleted');
+		} catch (err: unknown) {
+			toast.error(err instanceof Error ? err.message : 'Failed to delete deck');
+		}
+	}
+
+	function setFilter(filter: 'all' | DeckType) {
+		selectionClick();
+		activeFilter = filter;
+	}
+
+	let filteredDecks = $derived(
+		activeFilter === 'all' ? decks : decks.filter((d) => d.type === activeFilter)
+	);
+
+	let vocabCount = $derived(decks.filter((d) => d.type === 'vocabulary').length);
+	let grammarCount = $derived(decks.filter((d) => d.type === 'grammar').length);
+</script>
+
+<svelte:head>
+	<title>voabkr — Decks Library</title>
+</svelte:head>
+
+<div
+	class="flex flex-1 flex-col px-4 pt-4 pb-28"
+	style="padding-top: calc(var(--safe-top) + 16px);"
+>
+	<!-- Top Bar -->
+	<header class="mb-4 flex items-center justify-between">
+		<div>
+			<h1 class="text-2xl font-bold tracking-tight text-ink-primary">Decks Library</h1>
+			<p class="text-xs text-ink-secondary">Vocabulary & Grammar collections</p>
+		</div>
+
+		<TactileButton variant="primary" size="sm" onclick={() => modal.openDeckCreator()}>
+			+ New Deck
+		</TactileButton>
+	</header>
+
+	<!-- Segmented Filter Bar -->
+	<div
+		class="mb-4 flex items-center gap-1.5 rounded-xl border border-border-subtle bg-surface p-1 select-none"
+	>
+		<button
+			type="button"
+			onclick={() => setFilter('all')}
+			class="flex-1 rounded-lg py-1.5 text-xs font-bold transition {activeFilter === 'all'
+				? 'bg-canvas text-ink-primary shadow-xs'
+				: 'text-ink-secondary hover:text-ink-primary'}"
+		>
+			All ({decks.length})
+		</button>
+		<button
+			type="button"
+			onclick={() => setFilter('vocabulary')}
+			class="flex-1 rounded-lg py-1.5 text-xs font-bold transition {activeFilter === 'vocabulary'
+				? 'bg-canvas text-navy shadow-xs'
+				: 'text-ink-secondary hover:text-ink-primary'}"
+		>
+			Vocab ({vocabCount})
+		</button>
+		<button
+			type="button"
+			onclick={() => setFilter('grammar')}
+			class="flex-1 rounded-lg py-1.5 text-xs font-bold transition {activeFilter === 'grammar'
+				? 'bg-canvas text-celadon shadow-xs'
+				: 'text-ink-secondary hover:text-ink-primary'}"
+		>
+			Grammar ({grammarCount})
+		</button>
+	</div>
+
+	<!-- Deck List -->
+	<main class="flex-1">
+		{#if isLoading}
+			<div class="flex flex-col items-center justify-center py-16">
+				<div
+					class="h-8 w-8 animate-spin rounded-full border-2 border-terracotta border-t-transparent"
+				></div>
+				<p class="mt-3 text-xs text-ink-secondary">Loading study decks...</p>
+			</div>
+		{:else if filteredDecks.length === 0}
+			<div class="rounded-2xl border border-dashed border-border-strong bg-surface p-8 text-center">
+				<div
+					class="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-canvas text-2xl"
+				>
+					📚
+				</div>
+				<h2 class="text-base font-bold text-ink-primary">No Decks Found</h2>
+				<p class="mx-auto mt-1 max-w-xs text-xs leading-relaxed text-ink-secondary">
+					No {activeFilter !== 'all' ? activeFilter : ''} decks exist yet. Create your first deck to start
+					organizing your Korean flashcards.
+				</p>
+				<div class="mt-5 inline-block">
+					<TactileButton variant="primary" size="sm" onclick={() => modal.openDeckCreator()}>
+						+ Create First Deck
+					</TactileButton>
+				</div>
+			</div>
+		{:else}
+			<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+				{#each filteredDecks as deck (deck.id)}
+					<DeckCard
+						{deck}
+						onDelete={handleDeleteDeck}
+						onEdit={() => modal.openDeckCreator({ deckToEdit: deck })}
+					/>
+				{/each}
+			</div>
+		{/if}
+	</main>
+</div>
+
+<!-- Bottom Navigation Bar -->
+<BottomNavBar activeRoute="/decks" />
