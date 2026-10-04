@@ -158,7 +158,7 @@ class StudySessionStore {
 				this.sessionStartedAt,
 				this.sessionDeckId ?? undefined
 			);
-			for (const card of fresh) {
+			for (const card of fresh.slice().reverse()) {
 				if (this.sessionDeckId !== null && card.deckId !== this.sessionDeckId) {
 					continue;
 				}
@@ -170,6 +170,8 @@ class StudySessionStore {
 						card,
 						...this.cards.slice(this.currentIndex + 2)
 					];
+					console.log(`Card ${card.id} re-queued and added to session queue`);
+					console.log(`Current queue: ${this.cards.slice(this.currentIndex + 1, this.currentIndex + 6).map((c) => c.englishWord).join(', ')}`);
 				}
 			}
 		} catch {
