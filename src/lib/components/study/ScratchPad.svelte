@@ -160,7 +160,7 @@
 	>
 		<div class="flex items-center gap-1.5 text-ink-secondary">
 			<svg
-				class="h-3.5 w-3.5 text-terracotta"
+				class="h-3.5 w-3.5 text-primary"
 				viewBox="0 0 24 24"
 				fill="none"
 				stroke="currentColor"
@@ -182,7 +182,7 @@
 			type="button"
 			onclick={() => clearCanvas(true)}
 			class="flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-semibold transition active:scale-95 {hasStrokes
-				? 'text-terracotta hover:bg-terracotta/10'
+				? 'text-primary hover:bg-primary/10'
 				: 'text-ink-muted hover:text-ink-secondary'}"
 			title="지우기 (Clear)"
 		>

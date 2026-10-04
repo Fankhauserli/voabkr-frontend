@@ -80,20 +80,64 @@
 				class="flex h-11 w-11 items-center justify-center rounded-xl border border-border-subtle bg-surface text-ink-primary transition hover:border-crimson hover:text-crimson active:scale-95"
 				aria-label="Exit session"
 			>
-				✕
+				<svg
+					class="h-4 w-4"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					aria-hidden="true"
+				>
+					<line x1="18" y1="6" x2="6" y2="18" />
+					<line x1="6" y1="6" x2="18" y2="18" />
+				</svg>
 			</button>
 
 			<button
 				type="button"
 				onclick={() => studySession.toggleStudyDirection()}
-				class="flex max-w-[200px] items-center gap-1.5 rounded-xl border border-border-subtle bg-surface px-3 py-1.5 text-xs font-bold text-ink-primary transition hover:border-terracotta active:scale-95"
+				class="flex max-w-[220px] items-center gap-1.5 rounded-xl border border-border-subtle bg-surface px-3 py-1.5 text-xs font-bold text-ink-primary transition hover:border-primary active:scale-95"
 				title="Switch learning direction"
 				aria-label="Toggle learning direction"
 			>
 				{#if studySession.studyDirection === 'koreanToEnglish'}
-					<span>🇰🇷 한국어 ➔ 🇬🇧 EN</span>
+					<span class="inline-flex items-center gap-1.5 font-medium">
+						<span class="font-bold text-ink-primary">한국어</span>
+						<svg
+							class="h-3 w-3 text-ink-muted"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2.5"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							aria-hidden="true"
+						>
+							<line x1="5" y1="12" x2="19" y2="12" />
+							<polyline points="12 5 19 12 12 19" />
+						</svg>
+						<span class="text-ink-secondary">English</span>
+					</span>
 				{:else}
-					<span>🇬🇧 EN ➔ 🇰🇷 한국어</span>
+					<span class="inline-flex items-center gap-1.5 font-medium">
+						<span class="text-ink-secondary">English</span>
+						<svg
+							class="h-3 w-3 text-ink-muted"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2.5"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							aria-hidden="true"
+						>
+							<line x1="5" y1="12" x2="19" y2="12" />
+							<polyline points="12 5 19 12 12 19" />
+						</svg>
+						<span class="font-bold text-ink-primary">한국어</span>
+					</span>
 				{/if}
 			</button>
 
@@ -101,7 +145,7 @@
 				type="button"
 				onclick={() => studySession.toggleScratchPad()}
 				class="flex h-11 w-11 items-center justify-center rounded-xl border transition active:scale-95 {studySession.scratchPadEnabled
-					? 'border-terracotta bg-terracotta/10 text-terracotta shadow-xs'
+					? 'border-primary bg-primary/10 text-primary shadow-xs'
 					: 'border-border-subtle bg-surface text-ink-muted hover:text-ink-primary'}"
 				title={studySession.scratchPadEnabled
 					? 'Hide Scratch Pad'
@@ -134,7 +178,7 @@
 		{#if studySession.isLoading}
 			<div class="flex flex-col items-center justify-center py-16">
 				<div
-					class="h-10 w-10 animate-spin rounded-full border-2 border-terracotta border-t-transparent"
+					class="h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent"
 				></div>
 				<p class="mt-4 text-xs font-semibold text-ink-secondary">Loading deck cards...</p>
 			</div>
@@ -192,7 +236,21 @@
 						fullWidth
 						onclick={() => studySession.flipCard()}
 					>
-						Reveal Meaning ↺
+						<span class="inline-flex items-center gap-2">
+							<span>Reveal Meaning</span>
+							<svg
+								class="h-4 w-4"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								aria-hidden="true"
+							>
+								<path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.19" />
+							</svg>
+						</span>
 					</TactileButton>
 				</div>
 			{/if}

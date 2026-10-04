@@ -59,16 +59,18 @@
 		{#if status === 'verifying'}
 			<div class="my-6 flex flex-col items-center justify-center">
 				<div
-					class="h-10 w-10 animate-spin rounded-full border-2 border-terracotta border-t-transparent"
+					class="h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent"
 				></div>
 				<p class="mt-4 text-sm font-semibold text-ink-primary">Verifying your email...</p>
 			</div>
 		{:else if status === 'success'}
 			<div class="my-4">
 				<div
-					class="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-celadon/15 text-2xl font-bold text-celadon"
+					class="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-celadon/15 text-celadon"
 				>
-					✓
+					<svg class="h-7 w-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+						<polyline points="20 6 9 17 4 12"></polyline>
+					</svg>
 				</div>
 				<h2 class="text-xl font-bold text-ink-primary">Email Verified!</h2>
 				<p class="mt-2 text-xs leading-relaxed text-ink-secondary">

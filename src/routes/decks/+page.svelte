@@ -102,16 +102,29 @@
 		{#if isLoading}
 			<div class="flex flex-col items-center justify-center py-16">
 				<div
-					class="h-8 w-8 animate-spin rounded-full border-2 border-terracotta border-t-transparent"
+					class="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent"
 				></div>
 				<p class="mt-3 text-xs text-ink-secondary">Loading study decks...</p>
 			</div>
 		{:else if filteredDecks.length === 0}
 			<div class="rounded-2xl border border-dashed border-border-strong bg-surface p-8 text-center">
 				<div
-					class="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-canvas text-2xl"
+					class="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-border-subtle bg-canvas text-ink-muted shadow-xs"
 				>
-					📚
+					<svg
+						class="h-7 w-7"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="1.8"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						aria-hidden="true"
+					>
+						<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+						<path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+						<path d="M8 7h8M8 11h6" />
+					</svg>
 				</div>
 				<h2 class="text-base font-bold text-ink-primary">No Decks Found</h2>
 				<p class="mx-auto mt-1 max-w-xs text-xs leading-relaxed text-ink-secondary">

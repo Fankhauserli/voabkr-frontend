@@ -64,17 +64,28 @@
 				type="button"
 				onclick={handleAddToReview}
 				disabled={isAddingReview}
-				class="rounded-lg border border-terracotta/40 bg-terracotta/10 px-2 py-1 text-xs font-semibold text-terracotta transition hover:bg-terracotta hover:text-white active:scale-95 disabled:opacity-50"
+				class="rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary transition hover:bg-primary hover:text-white active:scale-95 disabled:opacity-50"
 				aria-label="Add to review queue"
 			>
 				{isAddingReview ? '...' : '+ Study'}
 			</button>
 		{:else}
 			<span
-				class="flex h-6 w-6 items-center justify-center rounded-full bg-celadon/10 text-xs font-bold text-celadon"
+				class="flex h-6 w-6 items-center justify-center rounded-full bg-celadon/15 text-celadon"
 				title="In study queue"
 			>
-				✓
+				<svg
+					class="h-3.5 w-3.5"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2.5"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					aria-hidden="true"
+				>
+					<polyline points="20 6 9 17 4 12" />
+				</svg>
 			</span>
 		{/if}
 	</div>

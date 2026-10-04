@@ -33,10 +33,10 @@
 	<main class="my-auto flex flex-col items-center text-center">
 		<!-- Tactile Stamp / Seal -->
 		<div
-			class="mb-4 flex h-20 w-20 items-center justify-center rounded-full border-2 border-terracotta bg-terracotta/10 p-3 shadow-xs"
+			class="mb-4 flex h-20 w-20 items-center justify-center rounded-full border-2 border-crimson/50 bg-crimson/10 p-3 shadow-xs"
 		>
 			<div
-				class="flex h-full w-full items-center justify-center rounded-full border border-dashed border-terracotta text-terracotta"
+				class="flex h-full w-full items-center justify-center rounded-full border border-dashed border-crimson/60 text-crimson"
 			>
 				<span class="text-xl font-black">참잘함</span>
 			</div>
@@ -63,7 +63,7 @@
 
 			<div class="rounded-2xl border border-border-subtle bg-surface p-3.5 shadow-xs">
 				<p class="text-[11px] font-bold tracking-wider text-ink-muted uppercase">Streak</p>
-				<p class="mt-1 text-2xl font-black text-terracotta">{summary.streakDays}d</p>
+				<p class="mt-1 text-2xl font-black text-amber">{summary.streakDays}d</p>
 				<p class="text-[10px] text-ink-secondary">Consistent</p>
 			</div>
 		</div>
@@ -102,8 +102,11 @@
 		</div>
 
 		<!-- Next Review Forecast -->
-		<div class="mt-4 flex items-center gap-2 text-xs text-ink-secondary">
-			<span>⏱</span>
+		<div class="mt-4 flex items-center gap-1.5 text-xs text-ink-secondary">
+			<svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+				<circle cx="12" cy="12" r="10"></circle>
+				<polyline points="12 6 12 12 16 14"></polyline>
+			</svg>
 			<span>Next scheduled review batch due in 4 hours.</span>
 		</div>
 	</main>

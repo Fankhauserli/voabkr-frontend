@@ -23,7 +23,7 @@
 	</div>
 	<div class="h-1.5 w-full overflow-hidden rounded-full bg-border-subtle">
 		<div
-			class="h-full bg-terracotta transition-all duration-300 ease-out"
+			class="h-full bg-primary transition-all duration-300 ease-out"
 			style="width: {percentage}%;"
 		></div>
 	</div>

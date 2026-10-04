@@ -77,7 +77,7 @@
 			<div
 				class="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-border-strong bg-surface shadow-xs"
 			>
-				<span class="text-2xl font-black text-terracotta">보</span>
+				<span class="text-2xl font-black text-primary">보</span>
 			</div>
 			<h1 class="text-3xl font-extrabold tracking-tight text-ink-primary">voabkr</h1>
 			<p class="hangul-text mt-1 text-sm font-medium break-keep text-ink-secondary">

@@ -132,7 +132,13 @@
 			</div>
 
 			<a href="/study/{deckId}" class="shrink-0">
-				<TactileButton variant="primary" size="sm">Study Deck ➔</TactileButton>
+				<TactileButton variant="primary" size="sm">
+					<span>Study Deck</span>
+					<svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+						<line x1="5" y1="12" x2="19" y2="12"></line>
+						<polyline points="12 5 19 12 12 19"></polyline>
+					</svg>
+				</TactileButton>
 			</a>
 		</div>
 	</header>
@@ -144,15 +150,19 @@
 				type="search"
 				bind:value={searchQuery}
 				placeholder="Search Korean or English definition..."
-				class="min-h-[44px] w-full rounded-xl border border-border-strong bg-surface px-3.5 py-2 text-sm text-ink-primary placeholder:text-ink-muted focus:border-terracotta focus:outline-none"
+				class="min-h-[44px] w-full rounded-xl border border-border-strong bg-surface px-3.5 py-2 text-sm text-ink-primary placeholder:text-ink-muted focus:border-primary focus:outline-none"
 			/>
 			{#if searchQuery}
 				<button
 					type="button"
 					onclick={() => (searchQuery = '')}
 					class="absolute top-3 right-3 text-xs text-ink-muted hover:text-ink-primary"
+					aria-label="Clear search"
 				>
-					✕
+					<svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<line x1="18" y1="6" x2="6" y2="18"></line>
+						<line x1="6" y1="6" x2="18" y2="18"></line>
+					</svg>
 				</button>
 			{/if}
 		</div>
@@ -163,7 +173,7 @@
 				<input
 					type="checkbox"
 					bind:checked={filterQueueOnly}
-					class="rounded border-border-strong text-terracotta focus:ring-terracotta"
+					class="rounded border-border-strong text-primary focus:ring-primary"
 				/>
 				<span>In Study Queue Only</span>
 			</label>
@@ -175,7 +185,7 @@
 		{#if isLoading}
 			<div class="flex flex-col items-center justify-center py-16">
 				<div
-					class="h-8 w-8 animate-spin rounded-full border-2 border-terracotta border-t-transparent"
+					class="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent"
 				></div>
 				<p class="mt-3 text-xs text-ink-secondary">Loading cards...</p>
 			</div>
@@ -201,7 +211,7 @@
 					<button
 						type="button"
 						onclick={loadMore}
-						class="rounded-xl border border-border-strong bg-surface px-4 py-2 text-xs font-semibold text-ink-secondary transition hover:border-terracotta hover:text-terracotta active:scale-95"
+						class="rounded-xl border border-border-strong bg-surface px-4 py-2 text-xs font-semibold text-ink-secondary transition hover:border-primary hover:text-primary active:scale-95"
 					>
 						Load more ({visibleCards.length} of {filteredCards.length} cards)
 					</button>

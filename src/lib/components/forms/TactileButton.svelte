@@ -34,7 +34,7 @@
 
 	let variantClasses = $derived(
 		variant === 'primary'
-			? 'bg-terracotta text-white border-terracotta hover:opacity-95'
+			? 'bg-primary text-white border-primary hover:opacity-95 dark:text-canvas'
 			: variant === 'celadon'
 				? 'bg-celadon text-white border-celadon hover:opacity-95'
 				: variant === 'danger'

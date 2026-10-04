@@ -134,7 +134,7 @@
 			<select
 				id="deck-select"
 				bind:value={selectedDeckId}
-				class="min-h-[48px] rounded-xl border border-border-strong bg-surface px-3 py-2 text-sm text-ink-primary focus:border-terracotta focus:outline-none"
+				class="min-h-[48px] rounded-xl border border-border-strong bg-surface px-3 py-2 text-sm text-ink-primary focus:border-primary focus:outline-none"
 			>
 				{#each decks as d (d.id)}
 					<option value={d.id}>{d.name} ({d.type})</option>
@@ -179,7 +179,7 @@
 				bind:value={example}
 				placeholder="도서관에서 한국어 책을 읽어요. (I read Korean books at the library.)"
 				rows="3"
-				class="hangul-text w-full rounded-xl border border-border-strong bg-surface p-3 text-sm break-keep text-ink-primary transition placeholder:text-ink-muted focus:border-terracotta focus:outline-none"
+				class="hangul-text w-full rounded-xl border border-border-strong bg-surface p-3 text-sm break-keep text-ink-primary transition placeholder:text-ink-muted focus:border-primary focus:outline-none"
 			></textarea>
 		</div>
 

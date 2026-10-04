@@ -40,7 +40,7 @@
 		<label for={id} class="text-xs font-semibold text-ink-secondary">
 			{label}
 			{#if required}
-				<span class="text-terracotta">*</span>
+				<span class="text-crimson">*</span>
 			{/if}
 		</label>
 	{/if}
@@ -58,7 +58,7 @@
 			{oninput}
 			class="min-h-[48px] w-full rounded-xl border bg-surface px-3.5 py-2.5 text-base text-ink-primary transition placeholder:text-ink-muted focus:outline-none disabled:opacity-50 {error
 				? 'border-crimson focus:border-crimson focus:ring-1 focus:ring-crimson'
-				: 'border-border-strong focus:border-terracotta focus:ring-1 focus:ring-terracotta'} {isKoreanIme
+				: 'border-border-strong focus:border-primary focus:ring-1 focus:ring-primary'} {isKoreanIme
 				? 'font-medium'
 				: ''}"
 		/>

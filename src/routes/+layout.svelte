@@ -28,9 +28,11 @@
 
 		// Listen for 401 session expiration
 		const handleSessionExpired = () => {
-			toast.warning('Session expired. Please log in again.');
-			auth.logout();
-			goto('/login');
+			if (auth.isAuthenticated) {
+				toast.warning('Session expired. Please log in again.');
+				auth.logout();
+				goto('/login');
+			}
 		};
 
 		window.addEventListener('session-expired', handleSessionExpired);

@@ -175,8 +175,11 @@
 							>{auth.userEmail || 'learner@example.com'}</span
 						>
 						{#if auth.isVerified}
-							<span class="rounded-full bg-celadon/15 px-2.5 py-0.5 text-xs font-bold text-celadon">
-								✓ Verified
+							<span class="inline-flex items-center gap-1 rounded-full bg-celadon/15 px-2.5 py-0.5 text-xs font-bold text-celadon">
+								<svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+									<polyline points="20 6 9 17 4 12"></polyline>
+								</svg>
+								<span>Verified</span>
 							</span>
 						{:else}
 							<div class="flex items-center gap-2">
@@ -187,7 +190,7 @@
 									type="button"
 									onclick={handleResendVerification}
 									disabled={isResendingEmail}
-									class="text-xs font-semibold text-terracotta underline"
+									class="text-xs font-semibold text-primary underline"
 								>
 									{isResendingEmail ? 'Sending...' : 'Resend'}
 								</button>
@@ -220,7 +223,7 @@
 							onclick={() => handleGoalChange(count)}
 							class="min-h-[44px] rounded-xl border py-2 text-xs font-bold transition active:scale-95 {selectedGoal ===
 							count
-								? 'border-terracotta bg-terracotta text-white shadow-xs'
+								? 'border-primary bg-primary text-white shadow-xs'
 								: 'border-border-subtle bg-canvas text-ink-secondary hover:text-ink-primary'}"
 						>
 							{count}
@@ -244,10 +247,16 @@
 							onclick={() => handleDirectionChange('koreanToEnglish')}
 							class="flex min-h-[48px] flex-col items-center justify-center rounded-xl border p-2 text-xs font-bold transition active:scale-95 {studySession.studyDirection ===
 							'koreanToEnglish'
-								? 'border-terracotta bg-terracotta text-white shadow-xs'
+								? 'border-primary bg-primary text-white shadow-xs'
 								: 'border-border-subtle bg-canvas text-ink-secondary hover:text-ink-primary'}"
 						>
-							<span>🇰🇷 한국어 ➔ 🇬🇧 EN</span>
+							<span class="inline-flex items-center gap-1.5">
+								<span>한국어</span>
+								<svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+									<polyline points="9 18 15 12 9 6"></polyline>
+								</svg>
+								<span>English</span>
+							</span>
 							<span class="mt-0.5 text-[10px] font-normal opacity-80">Korean Prompt</span>
 						</button>
 						<button
@@ -255,10 +264,16 @@
 							onclick={() => handleDirectionChange('englishToKorean')}
 							class="flex min-h-[48px] flex-col items-center justify-center rounded-xl border p-2 text-xs font-bold transition active:scale-95 {studySession.studyDirection ===
 							'englishToKorean'
-								? 'border-terracotta bg-terracotta text-white shadow-xs'
+								? 'border-primary bg-primary text-white shadow-xs'
 								: 'border-border-subtle bg-canvas text-ink-secondary hover:text-ink-primary'}"
 						>
-							<span>🇬🇧 EN ➔ 🇰🇷 한국어</span>
+							<span class="inline-flex items-center gap-1.5">
+								<span>English</span>
+								<svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+									<polyline points="9 18 15 12 9 6"></polyline>
+								</svg>
+								<span>한국어</span>
+							</span>
 							<span class="mt-0.5 text-[10px] font-normal opacity-80">English Prompt</span>
 						</button>
 					</div>
@@ -281,7 +296,7 @@
 							aria-checked={studySession.scratchPadEnabled}
 							onclick={handleScratchPadToggle}
 							class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out {studySession.scratchPadEnabled
-								? 'bg-terracotta'
+								? 'bg-primary'
 								: 'bg-border-subtle'}"
 							aria-label="Toggle iPad Scratch Pad"
 						>

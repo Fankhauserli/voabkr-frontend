@@ -38,7 +38,7 @@ export const authApi = {
 			...(email ? { body: JSON.stringify({ email }) } : {})
 		}),
 
-	getProfile: () => apiFetch<User>('/user/profile'),
+	getProfile: (silent = true) => apiFetch<User>('/user/profile', { silent }),
 
 	updateProfile: (data: UpdateProfileRequest) =>
 		apiFetch<ApiResponse>('/user/profile', {
@@ -46,7 +46,7 @@ export const authApi = {
 			body: JSON.stringify(data)
 		}),
 
-	getSettings: () => apiFetch<UserSettings>('/user/settings'),
+	getSettings: (silent = true) => apiFetch<UserSettings>('/user/settings', { silent }),
 
 	updateSettings: (data: UpdateSettingsRequest) =>
 		apiFetch<ApiResponse>('/user/settings', {
