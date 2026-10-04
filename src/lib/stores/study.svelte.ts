@@ -161,7 +161,7 @@ class StudySessionStore {
 				this.sessionStartedAt,
 				this.sessionDeckId ?? undefined
 			);
-			for (const card of fresh.slice().reverse()) {
+			for (const card of fresh) {
 				if (this.sessionDeckId !== null && card.deckId !== this.sessionDeckId) {
 					continue;
 				}
