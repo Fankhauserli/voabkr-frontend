@@ -243,11 +243,7 @@ class ClientCache {
 	}
 
 	/** Deduplicated network fetch and storage. */
-	private async fetchAndStore<T>(
-		key: string,
-		fetcher: () => Promise<T>,
-		ttl: number
-	): Promise<T> {
+	private async fetchAndStore<T>(key: string, fetcher: () => Promise<T>, ttl: number): Promise<T> {
 		if (this.inFlight.has(key)) {
 			return this.inFlight.get(key) as Promise<T>;
 		}

@@ -115,8 +115,7 @@
 		if (!ctx) return;
 
 		// On iPad Safari, Apple Pencil can dispatch coalesced events for higher precision
-		const events =
-			typeof e.getCoalescedEvents === 'function' ? e.getCoalescedEvents() : [e];
+		const events = typeof e.getCoalescedEvents === 'function' ? e.getCoalescedEvents() : [e];
 
 		for (const ev of events) {
 			const pos = getPointerPos(ev);
@@ -156,7 +155,7 @@
 >
 	<!-- Scratchpad Header bar -->
 	<div
-		class="flex items-center justify-between border-b border-border-subtle/60 px-3 py-1.5 select-none bg-canvas/40"
+		class="flex items-center justify-between border-b border-border-subtle/60 bg-canvas/40 px-3 py-1.5 select-none"
 	>
 		<div class="flex items-center gap-1.5 text-ink-secondary">
 			<svg
@@ -172,10 +171,10 @@
 				<path d="M12 20h9" />
 				<path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
 			</svg>
-			<span class="text-[11px] font-bold tracking-wider uppercase text-ink-muted">
+			<span class="text-[11px] font-bold tracking-wider text-ink-muted uppercase">
 				연습장 · Scratch Pad
 			</span>
-			<span class="text-[10px] text-ink-muted/80 hidden sm:inline">(Apple Pencil / Stylus)</span>
+			<span class="hidden text-[10px] text-ink-muted/80 sm:inline">(Apple Pencil / Stylus)</span>
 		</div>
 
 		<button
@@ -205,10 +204,10 @@
 	</div>
 
 	<!-- Canvas Area with subtle Korean manuscript block / grid guidelines -->
-	<div class="relative w-full h-44 sm:h-52 bg-surface">
+	<div class="relative h-44 w-full bg-surface sm:h-52">
 		<!-- Subtle background grid lines for Hangul syllable spacing -->
 		<div
-			class="pointer-events-none absolute inset-0 opacity-[0.06] bg-[radial-gradient(#22201e_1px,transparent_1px)] dark:bg-[radial-gradient(#f3ede2_1px,transparent_1px)] [background-size:24px_24px]"
+			class="pointer-events-none absolute inset-0 bg-[radial-gradient(#22201e_1px,transparent_1px)] [background-size:24px_24px] opacity-[0.06] dark:bg-[radial-gradient(#f3ede2_1px,transparent_1px)]"
 		></div>
 
 		<canvas
@@ -224,9 +223,9 @@
 
 		{#if !hasStrokes}
 			<div
-				class="pointer-events-none absolute inset-0 flex items-center justify-center select-none opacity-40 text-ink-muted"
+				class="pointer-events-none absolute inset-0 flex items-center justify-center text-ink-muted opacity-40 select-none"
 			>
-				<p class="text-xs text-center font-medium">
+				<p class="text-center text-xs font-medium">
 					펜으로 한글을 써보세요<br />
 					<span class="text-[10px]">Sketch or write your answer with Apple Pencil</span>
 				</p>

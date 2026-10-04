@@ -18,7 +18,9 @@
 		</div>
 
 		<a href="/decks/{deck.id}" class="mt-3 block">
-			<h3 class="hangul-text text-base font-bold text-ink-primary transition group-hover:text-primary">
+			<h3
+				class="hangul-text text-base font-bold text-ink-primary transition group-hover:text-primary"
+			>
 				{deck.name}
 			</h3>
 		</a>
@@ -38,7 +40,16 @@
 			class="inline-flex items-center gap-1 text-xs font-semibold text-ink-secondary hover:text-ink-primary"
 		>
 			<span>Browse Cards</span>
-			<svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+			<svg
+				class="h-3 w-3"
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="2.2"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+				aria-hidden="true"
+			>
 				<line x1="5" y1="12" x2="19" y2="12" />
 				<polyline points="12 5 19 12 12 19" />
 			</svg>

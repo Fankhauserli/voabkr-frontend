@@ -118,14 +118,8 @@
 			<div
 				class="inline-flex items-center gap-1.5 rounded-full border border-amber/30 bg-amber/10 px-3 py-1 text-xs font-bold text-amber select-none"
 			>
-				<svg
-					class="h-3.5 w-3.5 fill-current"
-					viewBox="0 0 24 24"
-					stroke="none"
-				>
-					<path
-						d="M12 2l2.4 6.9 7.1.3-5.5 4.6 1.8 7-5.8-4.1-5.8 4.1 1.8-7-5.5-4.6 7.1-.3z"
-					/>
+				<svg class="h-3.5 w-3.5 fill-current" viewBox="0 0 24 24" stroke="none">
+					<path d="M12 2l2.4 6.9 7.1.3-5.5 4.6 1.8 7-5.8-4.1-5.8 4.1 1.8-7-5.5-4.6 7.1-.3z" />
 				</svg>
 				<span>7d streak</span>
 			</div>
@@ -141,7 +135,8 @@
 		>
 			<div class="flex items-center justify-between">
 				<div>
-					<span class="text-xs font-bold tracking-wider text-ink-muted uppercase">Daily Target</span>
+					<span class="text-xs font-bold tracking-wider text-ink-muted uppercase">Daily Target</span
+					>
 					<h2 class="mt-0.5 text-base font-bold text-ink-primary">Today's Progress</h2>
 				</div>
 				<span class="text-xs font-bold text-primary">{goalPercentage}% Complete</span>
@@ -164,9 +159,7 @@
 		<!-- 3. Due Review Queue Banner -->
 		<section class="mb-6" aria-label="Review Queue">
 			{#if dueCount > 0}
-				<div
-					class="rounded-2xl border border-primary/25 bg-surface p-5 text-ink-primary shadow-xs"
-				>
+				<div class="rounded-2xl border border-primary/25 bg-surface p-5 text-ink-primary shadow-xs">
 					<div class="flex items-start justify-between">
 						<div>
 							<span
@@ -175,7 +168,8 @@
 								Due For Review
 							</span>
 							<h2 class="mt-2 text-2xl font-black text-ink-primary">
-								{dueCount} {dueCount === 1 ? 'Card' : 'Cards'} Due
+								{dueCount}
+								{dueCount === 1 ? 'Card' : 'Cards'} Due
 							</h2>
 							<p class="mt-0.5 text-xs text-ink-secondary">
 								{vocabDue} Vocabulary · {grammarDue} Grammar
@@ -204,7 +198,15 @@
 						<a href="/study" class="block">
 							<TactileButton variant="primary" size="lg" fullWidth>
 								<span>Start Review Session</span>
-								<svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+								<svg
+									class="h-4 w-4"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2.5"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
 									<line x1="5" y1="12" x2="19" y2="12"></line>
 									<polyline points="12 5 19 12 12 19"></polyline>
 								</svg>
@@ -231,7 +233,8 @@
 					</div>
 					<h2 class="text-lg font-bold text-ink-primary">All caught up for today!</h2>
 					<p class="mt-1 text-xs leading-relaxed text-ink-secondary">
-						No cards are currently due for review. Great work keeping your spaced repetition on track.
+						No cards are currently due for review. Great work keeping your spaced repetition on
+						track.
 					</p>
 					<div class="mt-4">
 						<a href="/study" class="block">
@@ -246,16 +249,29 @@
 		<section class="mb-4" aria-label="Your Decks">
 			<div class="mb-3 flex items-center justify-between">
 				<h2 class="text-base font-bold text-ink-primary">Your Study Decks</h2>
-				<a href="/decks" class="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline">
+				<a
+					href="/decks"
+					class="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+				>
 					<span>View All</span>
-					<svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+					<svg
+						class="h-3 w-3"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2.5"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+					>
 						<polyline points="9 18 15 12 9 6"></polyline>
 					</svg>
 				</a>
 			</div>
 
 			{#if decks.length === 0 && !isLoading}
-				<div class="rounded-2xl border border-dashed border-border-strong bg-surface p-6 text-center">
+				<div
+					class="rounded-2xl border border-dashed border-border-strong bg-surface p-6 text-center"
+				>
 					<p class="text-sm font-semibold text-ink-primary">No Decks Available</p>
 					<p class="mt-1 text-xs text-ink-secondary">
 						Decks configured in the database will appear here.
@@ -282,7 +298,9 @@
 		style="padding-top: calc(var(--safe-top) + 16px);"
 	>
 		<!-- Public Navigation Header -->
-		<header class="mx-auto flex w-full max-w-4xl items-center justify-between border-b border-border-subtle pb-4">
+		<header
+			class="mx-auto flex w-full max-w-4xl items-center justify-between border-b border-border-subtle pb-4"
+		>
 			<a href="/" class="flex items-center gap-2.5">
 				<div
 					class="flex h-10 w-10 items-center justify-center rounded-xl border border-border-strong bg-surface shadow-xs"
@@ -290,13 +308,21 @@
 					<span class="font-hangul text-lg font-black text-primary">보</span>
 				</div>
 				<div>
-					<span class="font-hangul text-lg font-extrabold tracking-tight text-ink-primary">voabkr</span>
-					<span class="ml-1.5 hidden rounded-md bg-border-subtle px-1.5 py-0.5 text-[10px] font-semibold text-ink-secondary sm:inline">단어장</span>
+					<span class="font-hangul text-lg font-extrabold tracking-tight text-ink-primary"
+						>voabkr</span
+					>
+					<span
+						class="ml-1.5 hidden rounded-md bg-border-subtle px-1.5 py-0.5 text-[10px] font-semibold text-ink-secondary sm:inline"
+						>단어장</span
+					>
 				</div>
 			</a>
 
 			<div class="flex items-center gap-2">
-				<a href="/decks" class="hidden px-3 py-1.5 text-xs font-semibold text-ink-secondary hover:text-ink-primary sm:inline">
+				<a
+					href="/decks"
+					class="hidden px-3 py-1.5 text-xs font-semibold text-ink-secondary hover:text-ink-primary sm:inline"
+				>
 					Explore Decks
 				</a>
 				<a href="/login">
@@ -310,33 +336,45 @@
 
 		<!-- Hero Section -->
 		<section class="mx-auto my-10 flex max-w-2xl flex-col items-center text-center sm:my-16">
-			<div class="inline-flex items-center gap-2 rounded-full border border-border-subtle bg-surface px-3 py-1 text-xs font-semibold text-ink-secondary shadow-xs">
+			<div
+				class="inline-flex items-center gap-2 rounded-full border border-border-subtle bg-surface px-3 py-1 text-xs font-semibold text-ink-secondary shadow-xs"
+			>
 				<span class="h-2 w-2 rounded-full bg-celadon"></span>
 				<span>Spaced Repetition for Korean · 간격 반복 학습</span>
 			</div>
 
-			<h1 class="font-hangul mt-4 text-3xl font-extrabold tracking-tight break-keep text-ink-primary sm:text-5xl sm:leading-tight">
+			<h1
+				class="mt-4 font-hangul text-3xl font-extrabold tracking-tight break-keep text-ink-primary sm:text-5xl sm:leading-tight"
+			>
 				Remember Korean words and grammar for good.
 			</h1>
 
 			<p class="mt-4 text-sm leading-relaxed text-ink-secondary sm:text-base">
-				A quiet, tactile study notebook built with the SuperMemo SM-2 algorithm. Practice Hangul handwriting on your screen, train bidirectional recall, and master vocabulary with deliberate practice.
+				A quiet, tactile study notebook built with the SuperMemo SM-2 algorithm. Practice Hangul
+				handwriting on your screen, train bidirectional recall, and master vocabulary with
+				deliberate practice.
 			</p>
 
 			<div class="mt-8 flex w-full flex-col items-center justify-center gap-3 sm:flex-row">
 				<a href="/login" class="w-full sm:w-auto">
 					<TactileButton variant="primary" size="lg" fullWidth>
 						<span>Start Learning Free</span>
-						<svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+						<svg
+							class="h-4 w-4"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2.5"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						>
 							<line x1="5" y1="12" x2="19" y2="12"></line>
 							<polyline points="12 5 19 12 12 19"></polyline>
 						</svg>
 					</TactileButton>
 				</a>
 				<a href="/decks" class="w-full sm:w-auto">
-					<TactileButton variant="secondary" size="lg" fullWidth>
-						Browse Public Decks
-					</TactileButton>
+					<TactileButton variant="secondary" size="lg" fullWidth>Browse Public Decks</TactileButton>
 				</a>
 			</div>
 		</section>
@@ -344,29 +382,54 @@
 		<!-- Core Features Grid -->
 		<section class="mx-auto mb-16 max-w-4xl">
 			<div class="mb-6 text-center">
-				<h2 class="text-xs font-bold tracking-wider text-ink-muted uppercase">Purpose-Built Learning</h2>
-				<p class="font-hangul mt-1 text-xl font-bold text-ink-primary">Designed for how you actually retain Korean</p>
+				<h2 class="text-xs font-bold tracking-wider text-ink-muted uppercase">
+					Purpose-Built Learning
+				</h2>
+				<p class="mt-1 font-hangul text-xl font-bold text-ink-primary">
+					Designed for how you actually retain Korean
+				</p>
 			</div>
 
 			<div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
 				<!-- Feature 1: SM-2 Algorithm -->
 				<div class="rounded-2xl border border-border-subtle bg-surface p-5 shadow-xs">
-					<div class="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-						<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+					<div
+						class="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary"
+					>
+						<svg
+							class="h-5 w-5"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						>
 							<circle cx="12" cy="12" r="10"></circle>
 							<polyline points="12 6 12 12 16 14"></polyline>
 						</svg>
 					</div>
 					<h3 class="text-sm font-bold text-ink-primary">SM-2 Spaced Repetition</h3>
 					<p class="mt-1.5 text-xs leading-relaxed text-ink-secondary">
-						Cards are scheduled automatically using proven memory curves. Review words right before you forget them, skipping unnecessary repetition.
+						Cards are scheduled automatically using proven memory curves. Review words right before
+						you forget them, skipping unnecessary repetition.
 					</p>
 				</div>
 
 				<!-- Feature 2: Apple Pencil Scratch Pad -->
 				<div class="rounded-2xl border border-border-subtle bg-surface p-5 shadow-xs">
-					<div class="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-						<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+					<div
+						class="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary"
+					>
+						<svg
+							class="h-5 w-5"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						>
 							<path d="M12 19l7-7 3 3-7 7-3-3z"></path>
 							<path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path>
 							<path d="M2 2l7.586 7.586"></path>
@@ -375,14 +438,25 @@
 					</div>
 					<h3 class="text-sm font-bold text-ink-primary">Stylus Scratch Pad (연습장)</h3>
 					<p class="mt-1.5 text-xs leading-relaxed text-ink-secondary">
-						Draw or write Korean syllables by hand with Apple Pencil or your finger before revealing the card to build physical muscle memory.
+						Draw or write Korean syllables by hand with Apple Pencil or your finger before revealing
+						the card to build physical muscle memory.
 					</p>
 				</div>
 
 				<!-- Feature 3: Bidirectional Recall -->
 				<div class="rounded-2xl border border-border-subtle bg-surface p-5 shadow-xs">
-					<div class="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-						<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+					<div
+						class="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary"
+					>
+						<svg
+							class="h-5 w-5"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						>
 							<polyline points="17 1 21 5 17 9"></polyline>
 							<path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
 							<polyline points="7 23 3 19 7 15"></polyline>
@@ -391,7 +465,8 @@
 					</div>
 					<h3 class="text-sm font-bold text-ink-primary">Bidirectional Recall</h3>
 					<p class="mt-1.5 text-xs leading-relaxed text-ink-secondary">
-						Choose Korean prompt to test recognition, or English prompt to test active sentence and word production.
+						Choose Korean prompt to test recognition, or English prompt to test active sentence and
+						word production.
 					</p>
 				</div>
 			</div>
@@ -401,12 +476,25 @@
 		<section class="mx-auto mb-16 w-full max-w-4xl">
 			<div class="mb-4 flex items-center justify-between">
 				<div>
-					<h2 class="text-xs font-bold tracking-wider text-ink-muted uppercase">Curated Material</h2>
-					<p class="font-hangul mt-0.5 text-lg font-bold text-ink-primary">Available Study Decks</p>
+					<h2 class="text-xs font-bold tracking-wider text-ink-muted uppercase">
+						Curated Material
+					</h2>
+					<p class="mt-0.5 font-hangul text-lg font-bold text-ink-primary">Available Study Decks</p>
 				</div>
-				<a href="/decks" class="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline">
+				<a
+					href="/decks"
+					class="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+				>
 					<span>Browse all decks</span>
-					<svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+					<svg
+						class="h-3 w-3"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2.5"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+					>
 						<polyline points="9 18 15 12 9 6"></polyline>
 					</svg>
 				</a>
@@ -414,13 +502,19 @@
 
 			{#if isLoading}
 				<div class="flex flex-col items-center justify-center py-12">
-					<div class="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
+					<div
+						class="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent"
+					></div>
 					<p class="mt-3 text-xs text-ink-secondary">Loading study decks...</p>
 				</div>
 			{:else if decks.length === 0}
-				<div class="rounded-2xl border border-dashed border-border-strong bg-surface p-8 text-center">
+				<div
+					class="rounded-2xl border border-dashed border-border-strong bg-surface p-8 text-center"
+				>
 					<p class="text-sm font-semibold text-ink-primary">No public decks yet</p>
-					<p class="mt-1 text-xs text-ink-secondary">Decks added to the database will appear here.</p>
+					<p class="mt-1 text-xs text-ink-secondary">
+						Decks added to the database will appear here.
+					</p>
 				</div>
 			{:else}
 				<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -432,10 +526,15 @@
 		</section>
 
 		<!-- Bottom Call to Action Footer -->
-		<footer class="mx-auto w-full max-w-4xl rounded-2xl border border-border-subtle bg-surface p-6 text-center shadow-xs">
-			<h2 class="font-hangul text-xl font-bold text-ink-primary">Ready to start learning Korean?</h2>
+		<footer
+			class="mx-auto w-full max-w-4xl rounded-2xl border border-border-subtle bg-surface p-6 text-center shadow-xs"
+		>
+			<h2 class="font-hangul text-xl font-bold text-ink-primary">
+				Ready to start learning Korean?
+			</h2>
 			<p class="mx-auto mt-2 max-w-md text-xs leading-relaxed text-ink-secondary">
-				Create a free account to track your spaced repetition retention, maintain daily streaks, and sync your study sessions seamlessly.
+				Create a free account to track your spaced repetition retention, maintain daily streaks, and
+				sync your study sessions seamlessly.
 			</p>
 			<div class="mt-5 flex justify-center gap-3">
 				<a href="/login">

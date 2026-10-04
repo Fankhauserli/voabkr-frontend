@@ -175,8 +175,18 @@
 							>{auth.userEmail || 'learner@example.com'}</span
 						>
 						{#if auth.isVerified}
-							<span class="inline-flex items-center gap-1 rounded-full bg-celadon/15 px-2.5 py-0.5 text-xs font-bold text-celadon">
-								<svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+							<span
+								class="inline-flex items-center gap-1 rounded-full bg-celadon/15 px-2.5 py-0.5 text-xs font-bold text-celadon"
+							>
+								<svg
+									class="h-3 w-3"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="3"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
 									<polyline points="20 6 9 17 4 12"></polyline>
 								</svg>
 								<span>Verified</span>
@@ -252,7 +262,15 @@
 						>
 							<span class="inline-flex items-center gap-1.5">
 								<span>한국어</span>
-								<svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+								<svg
+									class="h-3 w-3"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2.5"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
 									<polyline points="9 18 15 12 9 6"></polyline>
 								</svg>
 								<span>English</span>
@@ -269,7 +287,15 @@
 						>
 							<span class="inline-flex items-center gap-1.5">
 								<span>English</span>
-								<svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+								<svg
+									class="h-3 w-3"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2.5"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
 									<polyline points="9 18 15 12 9 6"></polyline>
 								</svg>
 								<span>한국어</span>
@@ -287,7 +313,8 @@
 								iPad Stylus / Scratch Pad (연습장)
 							</span>
 							<p class="text-xs leading-relaxed text-ink-secondary">
-								Draw or practice writing Hangul syllables with Apple Pencil. Clears automatically after each card.
+								Draw or practice writing Hangul syllables with Apple Pencil. Clears automatically
+								after each card.
 							</p>
 						</div>
 						<button
