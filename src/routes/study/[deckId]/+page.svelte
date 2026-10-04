@@ -68,7 +68,7 @@
 </svelte:head>
 
 <div
-	class="flex min-h-screen flex-col justify-between px-4 py-3 select-none"
+	class="flex min-h-screen flex-col justify-between px-4 py-3"
 	style="padding-top: calc(var(--safe-top) + 8px); padding-bottom: calc(var(--safe-bottom) + 16px);"
 >
 	<!-- Top Bar -->

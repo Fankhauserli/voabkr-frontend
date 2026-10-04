@@ -27,7 +27,7 @@
 </svelte:head>
 
 <div
-	class="flex min-h-screen flex-col justify-between px-4 py-6 select-none"
+	class="flex min-h-screen flex-col justify-between px-4 py-6"
 	style="padding-top: calc(var(--safe-top) + 16px); padding-bottom: calc(var(--safe-bottom) + 24px);"
 >
 	<main class="my-auto flex flex-col items-center text-center">

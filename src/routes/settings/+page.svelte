@@ -226,7 +226,7 @@
 				</p>
 
 				<!-- Stepper pills -->
-				<div class="grid grid-cols-4 gap-2 select-none">
+				<div class="grid grid-cols-4 gap-2">
 					{#each [10, 20, 30, 50] as count (count)}
 						<button
 							type="button"
@@ -251,7 +251,7 @@
 						Korean).
 					</p>
 
-					<div class="grid grid-cols-2 gap-2 select-none">
+					<div class="grid grid-cols-2 gap-2">
 						<button
 							type="button"
 							onclick={() => handleDirectionChange('koreanToEnglish')}

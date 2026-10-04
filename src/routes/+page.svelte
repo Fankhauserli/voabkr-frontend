@@ -116,7 +116,7 @@
 
 			<!-- Daily Streak Badge -->
 			<div
-				class="inline-flex items-center gap-1.5 rounded-full border border-amber/30 bg-amber/10 px-3 py-1 text-xs font-bold text-amber select-none"
+				class="inline-flex items-center gap-1.5 rounded-full border border-amber/30 bg-amber/10 px-3 py-1 text-xs font-bold text-amber"
 			>
 				<svg class="h-3.5 w-3.5 fill-current" viewBox="0 0 24 24" stroke="none">
 					<path d="M12 2l2.4 6.9 7.1.3-5.5 4.6 1.8 7-5.8-4.1-5.8 4.1 1.8-7-5.5-4.6 7.1-.3z" />
@@ -130,7 +130,7 @@
 
 		<!-- 2. Daily Goal Progress -->
 		<section
-			class="mb-5 rounded-2xl border border-border-subtle bg-surface p-5 shadow-xs select-none"
+			class="mb-5 rounded-2xl border border-border-subtle bg-surface p-5 shadow-xs"
 			aria-label="Daily Goal"
 		>
 			<div class="flex items-center justify-between">

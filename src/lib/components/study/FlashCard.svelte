@@ -35,6 +35,9 @@
 	);
 
 	function handleFlip() {
+		if (typeof window !== 'undefined' && window.getSelection()?.toString()) {
+			return;
+		}
 		cardFlip();
 		onFlip?.();
 	}
@@ -48,7 +51,7 @@
 </script>
 
 <div
-	class="flashcard-perspective w-full max-w-sm select-none"
+	class="flashcard-perspective w-full max-w-sm"
 	role="region"
 	aria-roledescription="flashcard"
 	aria-label={`Flashcard: ${promptWord}`}
@@ -83,7 +86,20 @@
 				>
 					{promptLabel}
 				</span>
-				<span class="text-xs text-ink-muted">Tap to flip ↺</span>
+				<span class="inline-flex items-center gap-1 text-xs text-ink-muted">
+					<span>Tap to flip</span>
+					<svg
+						class="h-3.5 w-3.5"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+					>
+						<path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+					</svg>
+				</span>
 			</div>
 
 			<div class="my-auto flex flex-col items-center justify-center text-center">
