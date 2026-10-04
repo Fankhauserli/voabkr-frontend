@@ -21,8 +21,12 @@
 	--color-amber: var(--accent-amber);
 	--color-crimson: var(--accent-crimson);
 
-	--font-hangul: 'Pretendard', 'Noto Sans KR', system-ui, sans-serif;
-	--font-sans: 'Pretendard', 'Inter', system-ui, sans-serif;
+	--font-hangul:
+		'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo',
+		'Noto Sans KR', 'Malgun Gothic', system-ui, sans-serif;
+	--font-sans:
+		'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, 'Inter',
+		'Apple SD Gothic Neo', 'Noto Sans KR', system-ui, sans-serif;
 }
 
 :root {
