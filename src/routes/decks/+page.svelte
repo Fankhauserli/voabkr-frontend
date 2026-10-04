@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { deckApi } from '$lib/api/decks';
+	import { clientCache } from '$lib/api/cache';
 	import { selectionClick } from '$lib/utils/haptics';
 	import type { Deck, DeckType } from '$lib/types';
 	import DeckCard from '$lib/components/decks/DeckCard.svelte';
@@ -16,9 +17,15 @@
 	});
 
 	async function loadDecks() {
-		isLoading = true;
+		if (!clientCache.has('decks:list')) {
+			isLoading = true;
+		}
 		try {
-			decks = await deckApi.getDecks();
+			decks = await deckApi.getDecks({
+				onRevalidate: (fresh) => {
+					decks = fresh;
+				}
+			});
 		} catch {
 			decks = [];
 		} finally {

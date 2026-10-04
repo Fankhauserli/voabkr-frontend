@@ -3,6 +3,7 @@
 	import { page } from '$app/state';
 	import { deckApi } from '$lib/api/decks';
 	import { cardApi } from '$lib/api/cards';
+	import { clientCache } from '$lib/api/cache';
 	import { toast } from '$lib/stores/toast.svelte';
 	import type { Deck, Card } from '$lib/types';
 	import DeckTypeBadge from '$lib/components/decks/DeckTypeBadge.svelte';
@@ -22,11 +23,23 @@
 	});
 
 	async function loadDeckAndCards() {
-		isLoading = true;
+		const hasCache =
+			clientCache.has(`decks:item:${deckId}`) && clientCache.has(`cards:deck:${deckId}`);
+		if (!hasCache) {
+			isLoading = true;
+		}
 		try {
 			const [deckData, cardsData] = await Promise.all([
-				deckApi.getDeckById(deckId),
-				cardApi.getCards(deckId)
+				deckApi.getDeckById(deckId, {
+					onRevalidate: (fresh) => {
+						deck = fresh;
+					}
+				}),
+				cardApi.getCards(deckId, {
+					onRevalidate: (fresh) => {
+						cards = fresh.filter((card) => card.deckId === deckId);
+					}
+				})
 			]);
 			deck = deckData;
 			cards = cardsData.filter((card) => card.deckId === deckId);

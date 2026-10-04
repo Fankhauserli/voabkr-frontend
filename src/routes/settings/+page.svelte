@@ -3,6 +3,7 @@
 	import { auth } from '$lib/stores/auth.svelte';
 	import { authApi } from '$lib/api/auth';
 	import { reviewSync } from '$lib/stores/syncQueue.svelte';
+	import { clientCache } from '$lib/api/cache';
 	import { studySession } from '$lib/stores/study.svelte';
 	import { toast } from '$lib/stores/toast.svelte';
 	import { setStatusBarTheme } from '$lib/utils/statusBar';
@@ -100,7 +101,8 @@
 	function handleClearCache() {
 		selectionClick();
 		reviewSync.clear();
-		toast.info('Local card cache cleared');
+		clientCache.clear();
+		toast.info('Local card & deck cache cleared');
 	}
 
 	async function handleResendVerification() {

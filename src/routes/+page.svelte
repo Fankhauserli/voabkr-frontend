@@ -3,6 +3,7 @@
 	import { auth } from '$lib/stores/auth.svelte';
 	import { reviewApi } from '$lib/api/reviews';
 	import { deckApi } from '$lib/api/decks';
+	import { clientCache } from '$lib/api/cache';
 	import type { Card, Deck } from '$lib/types';
 	import BottomNavBar from '$lib/components/navigation/BottomNavBar.svelte';
 	import VerificationBanner from '$lib/components/feedback/VerificationBanner.svelte';
@@ -19,11 +20,22 @@
 	});
 
 	async function loadDashboardData() {
-		isLoading = true;
+		const hasCache = clientCache.has('reviews:due:all') || clientCache.has('decks:list');
+		if (!hasCache) {
+			isLoading = true;
+		}
 		try {
 			const [cardsResult, decksResult] = await Promise.allSettled([
-				reviewApi.getDueCards(),
-				deckApi.getDecks()
+				reviewApi.getDueCards(undefined, {
+					onRevalidate: (fresh) => {
+						dueCards = Array.isArray(fresh) ? fresh : [];
+					}
+				}),
+				deckApi.getDecks({
+					onRevalidate: (fresh) => {
+						decks = Array.isArray(fresh) ? fresh : [];
+					}
+				})
 			]);
 
 			if (cardsResult.status === 'fulfilled') {
