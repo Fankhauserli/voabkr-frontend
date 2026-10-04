@@ -211,18 +211,14 @@
 			</div>
 		</section>
 
-		<!-- 2. Learning Algorithm Preferences -->
+		<!-- 2. Learning Preferences -->
 		<section class="rounded-2xl border border-border-subtle bg-surface p-4 shadow-xs">
-			<h2 class="text-xs font-bold tracking-wider text-ink-muted uppercase">
-				Spaced Repetition Algorithm
-			</h2>
+			<h2 class="text-xs font-bold tracking-wider text-ink-muted uppercase">Study Preferences</h2>
 
 			<div class="mt-3">
-				<span class="mb-1 block text-xs font-semibold text-ink-primary">
-					Daily Card Target (`cardsPerDay`)
-				</span>
+				<span class="mb-1 block text-xs font-semibold text-ink-primary"> Daily Review Target </span>
 				<p class="mb-3 text-xs leading-relaxed text-ink-secondary">
-					Controls the maximum number of new and due cards scheduled in your daily review queue.
+					Choose how many cards to study and review each day.
 				</p>
 
 				<!-- Stepper pills -->
@@ -244,11 +240,10 @@
 				<!-- Study Direction selector -->
 				<div class="mt-4 border-t border-border-subtle pt-3">
 					<span class="mb-1 block text-xs font-semibold text-ink-primary">
-						Default Flashcard Direction (학습 방향)
+						Flashcard Direction (학습 방향)
 					</span>
 					<p class="mb-3 text-xs leading-relaxed text-ink-secondary">
-						Choose whether flashcards prompt you with Korean (recall English) or English (recall
-						Korean).
+						Choose whether cards prompt you with Korean or English first.
 					</p>
 
 					<div class="grid grid-cols-2 gap-2">
@@ -310,11 +305,11 @@
 					<div class="flex items-center justify-between gap-3">
 						<div class="flex-1">
 							<span class="block text-xs font-semibold text-ink-primary">
-								iPad Stylus / Scratch Pad (연습장)
+								Handwriting Scratch Pad (연습장)
 							</span>
 							<p class="text-xs leading-relaxed text-ink-secondary">
-								Draw or practice writing Hangul syllables with Apple Pencil. Clears automatically
-								after each card.
+								Draw or practice writing Hangul syllables with Apple Pencil or finger. Clears
+								automatically after each card.
 							</p>
 						</div>
 						<button
@@ -338,11 +333,9 @@
 			</div>
 		</section>
 
-		<!-- 3. App Appearance & System -->
+		<!-- 3. App Appearance & Offline Data -->
 		<section class="rounded-2xl border border-border-subtle bg-surface p-4 shadow-xs">
-			<h2 class="text-xs font-bold tracking-wider text-ink-muted uppercase">
-				Appearance & Storage
-			</h2>
+			<h2 class="text-xs font-bold tracking-wider text-ink-muted uppercase">Display & Storage</h2>
 
 			<div class="mt-3 flex flex-col gap-3">
 				<div class="flex items-center justify-between">
@@ -374,9 +367,11 @@
 
 				<div class="flex items-center justify-between border-t border-border-subtle pt-3">
 					<div>
-						<span class="text-xs font-bold text-ink-primary">Local Storage Buffer</span>
+						<span class="text-xs font-bold text-ink-primary">Offline Study Data</span>
 						<p class="text-[11px] text-ink-secondary">
-							{reviewSync.pendingCount} offline rating(s) queued
+							{reviewSync.pendingCount === 0
+								? 'All reviews synced'
+								: `${reviewSync.pendingCount} review(s) pending sync`}
 						</p>
 					</div>
 					<button
@@ -384,21 +379,16 @@
 						onclick={handleClearCache}
 						class="text-xs font-semibold text-crimson underline"
 					>
-						Clear Local Cache
+						Reset Local Data
 					</button>
 				</div>
 			</div>
 		</section>
 
-		<!-- 4. Session & Security -->
+		<!-- 4. Account Actions -->
 		<section class="rounded-2xl border border-border-subtle bg-surface p-4 shadow-xs">
-			<h2 class="text-xs font-bold tracking-wider text-ink-muted uppercase">Session</h2>
-			<div class="mt-2 flex items-center justify-between text-xs text-ink-secondary">
-				<span>Redis Session Status</span>
-				<span class="font-semibold text-celadon">Active (HttpOnly)</span>
-			</div>
-
-			<div class="mt-4">
+			<h2 class="text-xs font-bold tracking-wider text-ink-muted uppercase">Sign Out</h2>
+			<div class="mt-3">
 				<TactileButton
 					variant="danger"
 					size="lg"

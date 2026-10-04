@@ -191,7 +191,7 @@
 					bind:checked={filterQueueOnly}
 					class="rounded border-border-strong text-primary focus:ring-primary"
 				/>
-				<span>In Study Queue Only</span>
+				<span>Due for review only</span>
 			</label>
 		</div>
 	</div>

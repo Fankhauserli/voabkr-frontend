@@ -44,8 +44,8 @@
 			<div class="flex-1">
 				<p class="text-xs font-semibold text-amber">Email Unverified</p>
 				<p class="mt-0.5 text-xs leading-relaxed text-ink-secondary">
-					We sent a 64-character verification link to your email. You can still study today, but
-					please verify to keep your progress safe.
+					We sent a verification link to your email. Please click the link to confirm your account
+					and safeguard your study progress.
 				</p>
 				<div class="mt-2 flex items-center gap-2">
 					<button

@@ -58,7 +58,7 @@
 			<div class="rounded-2xl border border-border-subtle bg-surface p-3.5 shadow-xs">
 				<p class="text-[11px] font-bold tracking-wider text-ink-muted uppercase">Retention</p>
 				<p class="mt-1 text-2xl font-black text-celadon">{summary.retentionRate}%</p>
-				<p class="text-[10px] text-ink-secondary">Ease ≥ 3</p>
+				<p class="text-[10px] text-ink-secondary">Remembered</p>
 			</div>
 
 			<div class="rounded-2xl border border-border-subtle bg-surface p-3.5 shadow-xs">

@@ -273,9 +273,7 @@
 					class="rounded-2xl border border-dashed border-border-strong bg-surface p-6 text-center"
 				>
 					<p class="text-sm font-semibold text-ink-primary">No Decks Available</p>
-					<p class="mt-1 text-xs text-ink-secondary">
-						Decks configured in the database will appear here.
-					</p>
+					<p class="mt-1 text-xs text-ink-secondary">Available study decks will appear here.</p>
 				</div>
 			{:else}
 				<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -512,9 +510,7 @@
 					class="rounded-2xl border border-dashed border-border-strong bg-surface p-8 text-center"
 				>
 					<p class="text-sm font-semibold text-ink-primary">No public decks yet</p>
-					<p class="mt-1 text-xs text-ink-secondary">
-						Decks added to the database will appear here.
-					</p>
+					<p class="mt-1 text-xs text-ink-secondary">Curated study decks will appear here soon.</p>
 				</div>
 			{:else}
 				<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">

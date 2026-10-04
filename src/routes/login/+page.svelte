@@ -120,8 +120,8 @@
 
 			{#if registeredUnverified}
 				<div class="mb-4 rounded-xl border border-amber/40 bg-amber/10 p-3 text-xs text-amber">
-					We sent a 64-character verification link to your email. You can still study today, but
-					please verify to keep your progress safe.
+					We sent a verification link to your email. Please check your inbox to confirm your
+					account.
 				</div>
 			{/if}
 
@@ -174,7 +174,7 @@
 
 		<!-- Footer notice -->
 		<p class="mt-6 text-center text-xs leading-relaxed text-ink-muted">
-			Built for mobile learners. Data synced with Redis session cookies.
+			Quiet Korean study companion. Designed for focused, distraction-free practice.
 		</p>
 	</div>
 </div>
