@@ -2,7 +2,6 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
-	import { cardApi } from '$lib/api/cards';
 	import { deckApi } from '$lib/api/decks';
 	import { studySession } from '$lib/stores/study.svelte';
 	import { modal } from '$lib/stores/modal.svelte';
@@ -13,6 +12,7 @@
 	import Sm2RatingBar from '$lib/components/study/Sm2RatingBar.svelte';
 	import SessionProgressBar from '$lib/components/study/SessionProgressBar.svelte';
 	import TactileButton from '$lib/components/forms/TactileButton.svelte';
+	import { reviewApi } from '$lib/api/reviews';
 
 	let deck = $state<Deck | null>(null);
 	let deckId = $derived(parseInt(page.params.deckId ?? '0', 10));
@@ -31,7 +31,7 @@
 				studySession.isLoading = true;
 				const [deckData, cardsData] = await Promise.all([
 					deckApi.getDeckById(deckId),
-					cardApi.getCards(deckId)
+					reviewApi.getDueCards(deckId)
 				]);
 				deck = deckData;
 				const deckCards = cardsData.filter((card) => card.deckId === deckId);
