@@ -171,7 +171,12 @@ class StudySessionStore {
 						...this.cards.slice(this.currentIndex + 2)
 					];
 					console.log(`Card ${card.id} re-queued and added to session queue`);
-					console.log(`Current queue: ${this.cards.slice(this.currentIndex + 1, this.currentIndex + 6).map((c) => c.englishWord).join(', ')}`);
+					console.log(
+						`Current queue: ${this.cards
+							.slice(this.currentIndex + 1, this.currentIndex + 6)
+							.map((c) => c.englishWord)
+							.join(', ')}`
+					);
 				}
 			}
 		} catch {
