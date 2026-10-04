@@ -9,12 +9,14 @@ This document specifies the architectural transition of **voabkr** from a global
 Currently, the `decks` table contains only `id`, `name`, `type`, and timestamps. All decks are globally visible to all users, with no concept of an author or privacy boundary.
 
 To support:
+
 1. **Private Decks**: Decks authored by a learner visible only to them.
 2. **Public Decks**: Curated or community decks visible in the public catalog and to guests.
 3. **Deck Ownership**: Ability for the owner to edit, add cards, change visibility, or delete their deck.
 4. **Peer Sharing**: Explicitly sharing a private deck with other users via email or a secure share link.
 
 The system requires:
+
 - Database schema changes (foreign keys, visibility flags, share tables).
 - Multi-tenant authorization in the Go API (`voabkr-backend`).
 - Updates to Protocol Buffer schemas and caching invalidation logic.
@@ -30,7 +32,7 @@ The system requires:
 -- +goose Up
 
 -- 1. Add ownership and visibility to decks
-ALTER TABLE decks 
+ALTER TABLE decks
     ADD COLUMN owner_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
     ADD COLUMN is_public BOOLEAN NOT NULL DEFAULT FALSE,
     ADD COLUMN share_token VARCHAR(64) UNIQUE;
@@ -69,17 +71,19 @@ ALTER TABLE decks DROP COLUMN IF EXISTS owner_id;
 ## 3. Backend Access Control & API Endpoints
 
 ### 3.1 Deck Retrieval Logic
+
 When a user requests decks via `GET /api/v1/decks/`:
+
 - **Unauthenticated (Guests)**:
   ```sql
-  SELECT * FROM decks 
-  WHERE is_public = TRUE AND deleted_at IS NULL 
+  SELECT * FROM decks
+  WHERE is_public = TRUE AND deleted_at IS NULL
   ORDER BY name;
   ```
 - **Authenticated (User ID `$1`)**:
   ```sql
-  SELECT DISTINCT d.*, 
-    CASE 
+  SELECT DISTINCT d.*,
+    CASE
       WHEN d.owner_id = $1 THEN 'owner'
       WHEN s.permission IS NOT NULL THEN s.permission
       ELSE 'public'
@@ -87,8 +91,8 @@ When a user requests decks via `GET /api/v1/decks/`:
   FROM decks d
   LEFT JOIN deck_shares s ON d.id = s.deck_id AND s.user_id = $1
   WHERE d.deleted_at IS NULL AND (
-      d.is_public = TRUE 
-      OR d.owner_id = $1 
+      d.is_public = TRUE
+      OR d.owner_id = $1
       OR s.user_id = $1
   )
   ORDER BY d.name;
@@ -96,13 +100,13 @@ When a user requests decks via `GET /api/v1/decks/`:
 
 ### 3.2 Authorization Matrix
 
-| Action | Owner | Collaborator (`edit`) | Shared User (`view`) | Public Guest |
-| :--- | :---: | :---: | :---: | :---: |
-| **View Cards & Study** | ✅ | ✅ | ✅ | ✅ (Public decks only) |
-| **Add / Edit Cards** | ✅ | ✅ | ❌ | ❌ |
-| **Share Deck** | ✅ | ❌ | ❌ | ❌ |
-| **Change Public/Private**| ✅ | ❌ | ❌ | ❌ |
-| **Delete Deck** | ✅ | ❌ | ❌ | ❌ |
+| Action                    | Owner | Collaborator (`edit`) | Shared User (`view`) |      Public Guest      |
+| :------------------------ | :---: | :-------------------: | :------------------: | :--------------------: |
+| **View Cards & Study**    |  ✅   |          ✅           |          ✅          | ✅ (Public decks only) |
+| **Add / Edit Cards**      |  ✅   |          ✅           |          ❌          |           ❌           |
+| **Share Deck**            |  ✅   |          ❌           |          ❌          |           ❌           |
+| **Change Public/Private** |  ✅   |          ❌           |          ❌          |           ❌           |
+| **Delete Deck**           |  ✅   |          ❌           |          ❌          |           ❌           |
 
 ### 3.3 New & Updated Endpoints
 
@@ -132,34 +136,41 @@ POST   /api/v1/reset-password/:token  -> Validates token and updates password
 ## 4. Frontend UI & UX (`voabkr-frontend`)
 
 ### 4.1 Deck Library Tabs ([`/decks`](file:///home/fankhauserli/Work/git/github.com/Fankhauserli/voabkr-frontend/src/routes/decks/+page.svelte))
+
 Introduce segmented filter controls:
+
 - **All**: All decks accessible to the learner.
 - **My Decks**: Decks where `owner_id === user.id`.
 - **Shared with Me**: Private decks shared by peers.
 - **Public Catalog**: Curated and community decks.
 
 ### 4.2 Visibility Badges on [`DeckCard.svelte`](file:///home/fankhauserli/Work/git/github.com/Fankhauserli/voabkr-frontend/src/lib/components/decks/DeckCard.svelte)
+
 - **Public**: Minimalist globe SVG with label `Public`
 - **Private**: Minimalist lock SVG with label `Private`
 - **Shared**: Minimalist user group SVG with label `Shared`
 
 ### 4.3 Deck Creator & Editor Modal
+
 - Enabled for authenticated users to author their own decks.
 - Toggle:
   - `[x] Public`: Anyone can discover and study this deck.
   - `[ ] Private`: Only you and invited learners can access.
 
 ### 4.4 Deck Share Modal (`DeckShareModal.svelte`)
+
 - **Direct Invite**: Input user email address and select permission (`Can View & Study` or `Can Edit`).
 - **Shareable Link**: One-click button to copy unique link:
   `https://vocabkr.voyagera.ch/decks/join?token=sec_7f9a...`
 
 ### 4.5 Self-Service Account Deletion ([`/settings`](file:///home/fankhauserli/Work/git/github.com/Fankhauserli/voabkr-frontend/src/routes/settings/+page.svelte))
+
 - Add an in-app "Delete Account" button with a red confirmation modal:
-  *"This will permanently wipe your account, study history, and custom decks. This action cannot be undone."*
+  _"This will permanently wipe your account, study history, and custom decks. This action cannot be undone."_
 - Calls `DELETE /api/v1/user`, clears cookies, and redirects home.
 
 ### 4.6 PWA Offline Service Worker
+
 - Register a lightweight service worker to cache static assets (HTML, CSS, JS, Pretendard font) for offline web and tablet use.
 
 ---
@@ -167,6 +178,7 @@ Introduce segmented filter controls:
 ## 5. Curated Starter Content (Database Seed)
 
 To ensure the website launches with immediate educational value without requiring manual data entry:
+
 1. **TOPIK I Essential Vocabulary**: 150 foundational nouns, adverbs, and verbs with bilingual definitions and example sentences.
 2. **Essential Korean Verbs & Adjectives**: 100 high-frequency descriptive and action verbs.
 3. **Everyday Grammar Patterns**: 50 key conjugations (e.g. `-아/어요`, `-고 싶다`, `-ㄹ 수 있다`, `-아서/어서`).
@@ -204,4 +216,4 @@ flowchart TD
 
 ---
 
-*Document created: October 2026 for voabkr*
+_Document created: October 2026 for voabkr_
