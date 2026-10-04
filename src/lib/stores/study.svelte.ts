@@ -6,6 +6,7 @@ import { hapticFeedback } from '$lib/utils/haptics';
 import { SvelteDate, SvelteSet } from 'svelte/reactivity';
 class StudySessionStore {
 	cards = $state<Card[]>([]);
+	repeatedCards = $state<Card[]>([]);
 	currentIndex = $state<number>(0);
 	isFlipped = $state<boolean>(false);
 	isLoading = $state<boolean>(false);
@@ -136,6 +137,8 @@ class StudySessionStore {
 		this.currentIndex += 1;
 		this.clearScratchPad();
 
+		this.repeatedCards = this.repeatedCards.filter((c) => c.id !== cardId);
+
 		// After advancing, check if cards rated "Again" (ease 1) or "Hard" (ease 2)
 		// have come back due — Anki re-queues them in the same session.
 		// We poll /reviews/since/<sessionStart> to catch cards now due again.
@@ -162,21 +165,27 @@ class StudySessionStore {
 				if (this.sessionDeckId !== null && card.deckId !== this.sessionDeckId) {
 					continue;
 				}
-				const isAlreadyPending = this.cards.slice(this.currentIndex).some((c) => c.id === card.id);
+				const isAlreadyPending = this.repeatedCards.some((c) => c.id === card.id);
 				if (!isAlreadyPending) {
-					// Append the card to the next position in the queue if it's not already pending
-					this.cards = [
-						...this.cards.slice(0, this.currentIndex + 1),
-						card,
-						...this.cards.slice(this.currentIndex + 2)
-					];
-					console.log(`Card ${card.id} re-queued and added to session queue`);
-					console.log(
-						`Current queue: ${this.cards
-							.slice(this.currentIndex + 1, this.currentIndex + 6)
-							.map((c) => c.englishWord)
-							.join(', ')}`
-					);
+					// Append the card to the next position in the queue after the last repeated card if it's not already pending
+					if (this.repeatedCards.length > 0) {
+						const lastRepeatedIndex = this.cards.findIndex(
+							(c) => c.id === this.repeatedCards[this.repeatedCards.length - 1].id
+						);
+						this.cards = [
+							...this.cards.slice(0, lastRepeatedIndex + 1),
+							card,
+							...this.cards.slice(lastRepeatedIndex + 1)
+						];
+					} else {
+						this.cards = [
+							...this.cards.slice(0, this.currentIndex + 2),
+							card,
+							...this.cards.slice(this.currentIndex + 2)
+						];
+					}
+
+					this.repeatedCards.push(card);
 				}
 			}
 		} catch {
@@ -224,6 +233,7 @@ class StudySessionStore {
 		this.sessionStartedAt = null;
 		this.seenCardIds = new SvelteSet();
 		this.sessionDeckId = null;
+		this.repeatedCards = [];
 		this.clearScratchPad();
 	}
 }
