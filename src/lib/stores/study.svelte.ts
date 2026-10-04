@@ -166,9 +166,9 @@ class StudySessionStore {
 				if (!isAlreadyPending) {
 					// Append the card to the next position in the queue if it's not already pending
 					this.cards = [
-						...this.cards.slice(0, this.currentIndex),
+						...this.cards.slice(0, this.currentIndex + 1),
 						card,
-						...this.cards.slice(this.currentIndex + 1)
+						...this.cards.slice(this.currentIndex + 2)
 					];
 				}
 			}
