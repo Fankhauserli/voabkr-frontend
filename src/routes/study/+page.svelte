@@ -5,6 +5,7 @@
 	import { modal } from '$lib/stores/modal.svelte';
 	import { registerStudySessionGuard } from '$lib/utils/backButton';
 	import FlashCard from '$lib/components/study/FlashCard.svelte';
+	import ScratchPad from '$lib/components/study/ScratchPad.svelte';
 	import Sm2RatingBar from '$lib/components/study/Sm2RatingBar.svelte';
 	import SessionProgressBar from '$lib/components/study/SessionProgressBar.svelte';
 	import TactileButton from '$lib/components/forms/TactileButton.svelte';
@@ -82,7 +83,31 @@
 				{/if}
 			</button>
 
-			<div class="h-11 w-11"></div>
+			<button
+				type="button"
+				onclick={() => studySession.toggleScratchPad()}
+				class="flex h-11 w-11 items-center justify-center rounded-xl border transition active:scale-95 {studySession.scratchPadEnabled
+					? 'border-terracotta bg-terracotta/10 text-terracotta shadow-xs'
+					: 'border-border-subtle bg-surface text-ink-muted hover:text-ink-primary'}"
+				title={studySession.scratchPadEnabled
+					? 'Hide Scratch Pad'
+					: 'Show Scratch Pad (Apple Pencil)'}
+				aria-label="Toggle Scratch Pad"
+			>
+				<svg
+					class="h-5 w-5"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					aria-hidden="true"
+				>
+					<path d="M12 20h9" />
+					<path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+				</svg>
+			</button>
 		</div>
 
 		{#if studySession.totalCards > 0}
@@ -131,6 +156,15 @@
 				direction={studySession.studyDirection}
 				onFlip={() => studySession.flipCard()}
 			/>
+
+			{#if studySession.scratchPadEnabled}
+				<div class="mt-4 w-full max-w-sm">
+					<ScratchPad
+						cardId={studySession.currentCard.id}
+						revision={studySession.scratchPadRevision}
+					/>
+				</div>
+			{/if}
 		{/if}
 	</main>
 

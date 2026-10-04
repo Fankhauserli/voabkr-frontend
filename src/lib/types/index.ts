@@ -62,10 +62,14 @@ export interface UpdateProfileRequest extends UserRequest {}
 
 export interface UserSettings {
 	cardsPerDay: number;
+	studyDirection?: StudyDirection;
+	scratchPadEnabled?: boolean;
 }
 
 export interface UpdateSettingsRequest {
-	cardsPerDay: number;
+	cardsPerDay?: number;
+	studyDirection?: StudyDirection;
+	scratchPadEnabled?: boolean;
 }
 
 export interface LoginRequestBody {

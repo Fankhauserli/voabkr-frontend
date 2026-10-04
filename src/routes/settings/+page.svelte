@@ -24,8 +24,39 @@
 		}
 		if (auth.settings) {
 			selectedGoal = auth.settings.cardsPerDay;
+			if (auth.settings.studyDirection) {
+				studySession.setStudyDirection(auth.settings.studyDirection, false);
+			}
+			if (typeof auth.settings.scratchPadEnabled === 'boolean') {
+				studySession.setScratchPadEnabled(auth.settings.scratchPadEnabled, false);
+			}
 		}
 	});
+
+	async function handleDirectionChange(direction: 'koreanToEnglish' | 'englishToKorean') {
+		selectionClick();
+		studySession.setStudyDirection(direction, false);
+		try {
+			await authApi.updateSettings({ studyDirection: direction });
+			auth.updateSettings({ studyDirection: direction });
+			toast.success('Study direction preference saved');
+		} catch (err: unknown) {
+			toast.error(err instanceof Error ? err.message : 'Failed to save settings');
+		}
+	}
+
+	async function handleScratchPadToggle() {
+		selectionClick();
+		const next = !studySession.scratchPadEnabled;
+		studySession.setScratchPadEnabled(next, false);
+		try {
+			await authApi.updateSettings({ scratchPadEnabled: next });
+			auth.updateSettings({ scratchPadEnabled: next });
+			toast.success(next ? 'Scratch pad enabled' : 'Scratch pad disabled');
+		} catch (err: unknown) {
+			toast.error(err instanceof Error ? err.message : 'Failed to save settings');
+		}
+	}
 
 	async function handleSaveName() {
 		if (!name.trim()) return;
@@ -208,10 +239,7 @@
 					<div class="grid grid-cols-2 gap-2 select-none">
 						<button
 							type="button"
-							onclick={() => {
-								selectionClick();
-								studySession.setStudyDirection('koreanToEnglish');
-							}}
+							onclick={() => handleDirectionChange('koreanToEnglish')}
 							class="flex min-h-[48px] flex-col items-center justify-center rounded-xl border p-2 text-xs font-bold transition active:scale-95 {studySession.studyDirection ===
 							'koreanToEnglish'
 								? 'border-terracotta bg-terracotta text-white shadow-xs'
@@ -222,10 +250,7 @@
 						</button>
 						<button
 							type="button"
-							onclick={() => {
-								selectionClick();
-								studySession.setStudyDirection('englishToKorean');
-							}}
+							onclick={() => handleDirectionChange('englishToKorean')}
 							class="flex min-h-[48px] flex-col items-center justify-center rounded-xl border p-2 text-xs font-bold transition active:scale-95 {studySession.studyDirection ===
 							'englishToKorean'
 								? 'border-terracotta bg-terracotta text-white shadow-xs'
@@ -233,6 +258,36 @@
 						>
 							<span>🇬🇧 EN ➔ 🇰🇷 한국어</span>
 							<span class="mt-0.5 text-[10px] font-normal opacity-80">English Prompt</span>
+						</button>
+					</div>
+				</div>
+
+				<!-- iPad Apple Pencil / Stylus Scratch Pad setting -->
+				<div class="mt-4 border-t border-border-subtle pt-3">
+					<div class="flex items-center justify-between gap-3">
+						<div class="flex-1">
+							<span class="block text-xs font-semibold text-ink-primary">
+								iPad Stylus / Scratch Pad (연습장)
+							</span>
+							<p class="text-xs leading-relaxed text-ink-secondary">
+								Draw or practice writing Hangul syllables with Apple Pencil. Clears automatically after each card.
+							</p>
+						</div>
+						<button
+							type="button"
+							role="switch"
+							aria-checked={studySession.scratchPadEnabled}
+							onclick={handleScratchPadToggle}
+							class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out {studySession.scratchPadEnabled
+								? 'bg-terracotta'
+								: 'bg-border-subtle'}"
+							aria-label="Toggle iPad Scratch Pad"
+						>
+							<span
+								class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-xs transition duration-200 ease-in-out {studySession.scratchPadEnabled
+									? 'translate-x-5'
+									: 'translate-x-0'}"
+							></span>
 						</button>
 					</div>
 				</div>

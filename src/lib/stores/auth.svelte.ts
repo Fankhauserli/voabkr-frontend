@@ -1,5 +1,6 @@
 import type { UserProfile, UserSettings } from '$lib/types';
 import { authApi } from '$lib/api/auth';
+import { studySession } from '$lib/stores/study.svelte';
 
 /**
  * Svelte 5 Auth Store using pure runes ($state, $derived).
@@ -27,8 +28,18 @@ class AuthStore {
 			try {
 				const settings = await authApi.getSettings();
 				this.settings = settings;
+				if (settings.studyDirection) {
+					studySession.setStudyDirection(settings.studyDirection, false);
+				}
+				if (typeof settings.scratchPadEnabled === 'boolean') {
+					studySession.setScratchPadEnabled(settings.scratchPadEnabled, false);
+				}
 			} catch {
-				this.settings = { cardsPerDay: 20 };
+				this.settings = {
+					cardsPerDay: 20,
+					studyDirection: 'koreanToEnglish',
+					scratchPadEnabled: false
+				};
 			}
 		} catch {
 			this.user = null;
@@ -56,12 +67,21 @@ class AuthStore {
 		this.settings = settings;
 	}
 
-	updateCardsPerDay(cardsPerDay: number) {
+	updateSettings(partial: Partial<UserSettings>) {
 		if (this.settings) {
-			this.settings.cardsPerDay = cardsPerDay;
+			this.settings = { ...this.settings, ...partial };
 		} else {
-			this.settings = { cardsPerDay };
+			this.settings = {
+				cardsPerDay: 20,
+				studyDirection: 'koreanToEnglish',
+				scratchPadEnabled: false,
+				...partial
+			};
 		}
+	}
+
+	updateCardsPerDay(cardsPerDay: number) {
+		this.updateSettings({ cardsPerDay });
 	}
 
 	setVerified(verified: boolean) {

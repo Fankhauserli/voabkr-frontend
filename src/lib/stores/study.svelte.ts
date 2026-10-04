@@ -1,5 +1,6 @@
 import type { Card, SM2Rating, StudySessionSummary, StudyDirection } from '$lib/types';
 import { reviewApi } from '$lib/api/reviews';
+import { authApi } from '$lib/api/auth';
 import { reviewSync } from './syncQueue.svelte';
 import { hapticFeedback } from '$lib/utils/haptics';
 import { SvelteDate, SvelteSet } from 'svelte/reactivity';
@@ -12,6 +13,8 @@ class StudySessionStore {
 	ratingsRecorded = $state<{ cardId: number; ease: SM2Rating }[]>([]);
 	lastSessionSummary = $state<StudySessionSummary | null>(null);
 	studyDirection = $state<StudyDirection>('koreanToEnglish');
+	scratchPadEnabled = $state<boolean>(false);
+	scratchPadRevision = $state<number>(0);
 
 	constructor() {
 		if (typeof localStorage !== 'undefined') {
@@ -19,22 +22,50 @@ class StudySessionStore {
 			if (saved === 'koreanToEnglish' || saved === 'englishToKorean') {
 				this.studyDirection = saved;
 			}
+			const savedPad = localStorage.getItem('voabkr_scratch_pad_enabled');
+			if (savedPad !== null) {
+				this.scratchPadEnabled = savedPad === 'true';
+			}
 		}
 	}
 
-	toggleStudyDirection(): void {
+	toggleStudyDirection(syncBackend = true): void {
 		this.studyDirection =
 			this.studyDirection === 'koreanToEnglish' ? 'englishToKorean' : 'koreanToEnglish';
 		if (typeof localStorage !== 'undefined') {
 			localStorage.setItem('voabkr_study_direction', this.studyDirection);
 		}
+		if (syncBackend) {
+			authApi.updateSettings({ studyDirection: this.studyDirection }).catch(() => {});
+		}
 	}
 
-	setStudyDirection(direction: StudyDirection): void {
+	setStudyDirection(direction: StudyDirection, syncBackend = false): void {
 		this.studyDirection = direction;
 		if (typeof localStorage !== 'undefined') {
 			localStorage.setItem('voabkr_study_direction', direction);
 		}
+		if (syncBackend) {
+			authApi.updateSettings({ studyDirection: direction }).catch(() => {});
+		}
+	}
+
+	toggleScratchPad(syncBackend = true): void {
+		this.setScratchPadEnabled(!this.scratchPadEnabled, syncBackend);
+	}
+
+	setScratchPadEnabled(enabled: boolean, syncBackend = false): void {
+		this.scratchPadEnabled = enabled;
+		if (typeof localStorage !== 'undefined') {
+			localStorage.setItem('voabkr_scratch_pad_enabled', String(enabled));
+		}
+		if (syncBackend) {
+			authApi.updateSettings({ scratchPadEnabled: enabled }).catch(() => {});
+		}
+	}
+
+	clearScratchPad(): void {
+		this.scratchPadRevision += 1;
 	}
 
 	/** ISO timestamp recorded when the session started. Used for /since polling. */
@@ -103,6 +134,7 @@ class StudySessionStore {
 		// Advance immediately without waiting for network roundtrip
 		this.isFlipped = false;
 		this.currentIndex += 1;
+		this.clearScratchPad();
 
 		// After advancing, check if cards rated "Again" (ease 1) or "Hard" (ease 2)
 		// have come back due — Anki re-queues them in the same session.
@@ -180,6 +212,7 @@ class StudySessionStore {
 		this.sessionStartedAt = null;
 		this.seenCardIds = new SvelteSet();
 		this.sessionDeckId = null;
+		this.clearScratchPad();
 	}
 }
 
