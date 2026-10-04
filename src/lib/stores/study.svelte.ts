@@ -172,6 +172,7 @@ class StudySessionStore {
 						const lastRepeatedIndex = this.cards.findIndex(
 							(c) => c.id === this.repeatedCards[this.repeatedCards.length - 1].id
 						);
+						console.log(`Last Repeated Index: ${lastRepeatedIndex}`);
 						this.cards = [
 							...this.cards.slice(0, lastRepeatedIndex + 1),
 							card,
@@ -185,7 +186,9 @@ class StudySessionStore {
 						];
 					}
 
-					this.repeatedCards.push(card);
+					this.repeatedCards = [...this.repeatedCards, card];
+
+					console.log(`Repeated Cards: ${JSON.stringify(this.repeatedCards)}`);
 				}
 			}
 		} catch {
