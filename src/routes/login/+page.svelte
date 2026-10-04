@@ -164,6 +164,15 @@
 					autocomplete={activeTab === 'login' ? 'current-password' : 'new-password'}
 				/>
 
+				{#if activeTab === 'register'}
+					<p class="text-[11px] leading-relaxed text-ink-muted">
+						By creating an account, you agree to our
+						<a href="/terms" class="text-primary underline" target="_blank">Terms of Service</a>
+						and
+						<a href="/privacy" class="text-primary underline" target="_blank">Privacy Policy</a>.
+					</p>
+				{/if}
+
 				<div class="mt-2">
 					<TactileButton type="submit" variant="primary" loading={isLoading} fullWidth size="lg">
 						{activeTab === 'login' ? 'Log In' : 'Start Learning'}
@@ -172,9 +181,16 @@
 			</form>
 		</div>
 
-		<!-- Footer notice -->
-		<p class="mt-6 text-center text-xs leading-relaxed text-ink-muted">
-			Quiet Korean study companion. Designed for focused, distraction-free practice.
-		</p>
+		<!-- Footer notice & legal links -->
+		<div class="mt-6 flex flex-col items-center gap-2 text-center text-xs text-ink-muted">
+			<p>Quiet Korean study companion. Designed for focused, distraction-free practice.</p>
+			<div class="flex items-center gap-3 text-[11px]">
+				<a href="/privacy" class="hover:text-ink-primary hover:underline">Privacy Policy</a>
+				<span>·</span>
+				<a href="/terms" class="hover:text-ink-primary hover:underline">Terms of Service</a>
+				<span>·</span>
+				<a href="/legal" class="hover:text-ink-primary hover:underline">Legal Notice</a>
+			</div>
+		</div>
 	</div>
 </div>

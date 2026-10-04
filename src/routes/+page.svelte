@@ -540,9 +540,15 @@
 					<TactileButton variant="secondary" size="md">Log In</TactileButton>
 				</a>
 			</div>
-			<p class="mt-6 text-[11px] text-ink-muted">
-				voabkr · Quiet Korean Spaced Repetition Notebook
-			</p>
+			<div class="mt-6 flex flex-wrap items-center justify-center gap-3 text-[11px] text-ink-muted">
+				<span>© {new Date().getFullYear()} voabkr</span>
+				<span>·</span>
+				<a href="/privacy" class="hover:text-ink-primary hover:underline">Privacy Policy</a>
+				<span>·</span>
+				<a href="/terms" class="hover:text-ink-primary hover:underline">Terms of Service</a>
+				<span>·</span>
+				<a href="/legal" class="hover:text-ink-primary hover:underline">Legal Notice (Impressum)</a>
+			</div>
 		</footer>
 	</div>
 

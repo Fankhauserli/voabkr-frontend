@@ -119,6 +119,27 @@
 		}
 	}
 
+	function handleExportData() {
+		selectionClick();
+		const exportData = {
+			exportDate: new Date().toISOString(),
+			application: 'voabkr',
+			user: auth.user,
+			settings: auth.settings,
+			pendingOfflineReviews: reviewSync.pendingCount
+		};
+		const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = `voabkr-data-export-${new Date().toISOString().split('T')[0]}.json`;
+		document.body.appendChild(a);
+		a.click();
+		document.body.removeChild(a);
+		URL.revokeObjectURL(url);
+		toast.success('Personal study data exported');
+	}
+
 	async function handleLogout() {
 		isLoggingOut = true;
 		try {
@@ -385,7 +406,74 @@
 			</div>
 		</section>
 
-		<!-- 4. Account Actions -->
+		<!-- 4. Privacy & Data Rights (GDPR & Swiss revDSG) -->
+		<section class="rounded-2xl border border-border-subtle bg-surface p-4 shadow-xs">
+			<h2 class="text-xs font-bold tracking-wider text-ink-muted uppercase">
+				Privacy & Data Rights
+			</h2>
+			<div class="mt-3 flex flex-col gap-3">
+				<div class="flex items-center justify-between">
+					<div>
+						<span class="text-xs font-bold text-ink-primary">Export Study Data</span>
+						<p class="text-[11px] text-ink-secondary">
+							Download a copy of your personal study data (JSON)
+						</p>
+					</div>
+					<button
+						type="button"
+						onclick={handleExportData}
+						class="rounded-xl border border-border-strong bg-canvas px-3 py-1.5 text-xs font-semibold text-ink-primary transition hover:border-primary active:scale-95"
+					>
+						Export Data
+					</button>
+				</div>
+
+				<div class="flex items-center justify-between border-t border-border-subtle pt-3">
+					<div>
+						<span class="text-xs font-bold text-ink-primary">Account Deletion</span>
+						<p class="text-[11px] text-ink-secondary">
+							Permanently delete your account and records
+						</p>
+					</div>
+					<a
+						href="mailto:privacy@voyagera.ch?subject=Account%20Deletion%20Request"
+						class="text-xs font-semibold text-crimson underline"
+					>
+						Request Erasure
+					</a>
+				</div>
+			</div>
+		</section>
+
+		<!-- 5. Legal Notices -->
+		<section class="rounded-2xl border border-border-subtle bg-surface p-4 shadow-xs">
+			<h2 class="text-xs font-bold tracking-wider text-ink-muted uppercase">Legal & Compliance</h2>
+			<div class="mt-2 flex flex-col divide-y divide-border-subtle text-xs">
+				<a
+					href="/privacy"
+					class="flex items-center justify-between py-2.5 font-medium text-ink-primary hover:text-primary"
+				>
+					<span>Privacy Policy (개인정보처리방침)</span>
+					<span class="text-ink-muted">→</span>
+				</a>
+				<a
+					href="/terms"
+					class="flex items-center justify-between py-2.5 font-medium text-ink-primary hover:text-primary"
+				>
+					<span>Terms of Service (이용약관)</span>
+					<span class="text-ink-muted">→</span>
+				</a>
+				<a
+					href="/legal"
+					class="flex items-center justify-between py-2.5 font-medium text-ink-primary hover:text-primary"
+				>
+					<span>Legal Notice & Impressum (법적 고지)</span>
+					<span class="text-ink-muted">→</span>
+				</a>
+			</div>
+		</section>
+
+		<!-- 6. Account Actions -->
 		<section class="rounded-2xl border border-border-subtle bg-surface p-4 shadow-xs">
 			<h2 class="text-xs font-bold tracking-wider text-ink-muted uppercase">Sign Out</h2>
 			<div class="mt-3">
