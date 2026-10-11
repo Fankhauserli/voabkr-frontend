@@ -87,7 +87,7 @@
 	<!-- AUTHENTICATED LEARNER DASHBOARD           -->
 	<!-- ========================================== -->
 	<div
-		class="flex flex-1 flex-col px-4 pt-4 pb-28"
+		class="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 pt-4 pb-28 sm:px-6 md:pb-12 lg:px-8"
 		style="padding-top: calc(var(--safe-top) + 16px);"
 	>
 		<!-- 1. Header Bar -->
@@ -128,122 +128,134 @@
 		<!-- Email Verification Banner (if unverified) -->
 		<VerificationBanner />
 
-		<!-- 2. Daily Goal Progress -->
-		<section
-			class="mb-5 rounded-2xl border border-border-subtle bg-surface p-5 shadow-xs"
-			aria-label="Daily Goal"
-		>
-			<div class="flex items-center justify-between">
+		<!-- 2 & 3. Responsive 2-Column Grid: Daily Goal & Due Queue -->
+		<div class="mb-6 grid grid-cols-1 items-stretch gap-5 md:grid-cols-2">
+			<!-- 2. Daily Goal Progress -->
+			<section
+				class="flex flex-col justify-between rounded-2xl border border-border-subtle bg-surface p-5 shadow-xs"
+				aria-label="Daily Goal"
+			>
 				<div>
-					<span class="text-xs font-bold tracking-wider text-ink-muted uppercase">Daily Target</span
-					>
-					<h2 class="mt-0.5 text-base font-bold text-ink-primary">Today's Progress</h2>
-				</div>
-				<span class="text-xs font-bold text-primary">{goalPercentage}% Complete</span>
-			</div>
-
-			<div class="my-4 flex items-baseline gap-1.5">
-				<span class="text-3xl font-extrabold text-ink-primary">{completedToday}</span>
-				<span class="text-sm font-semibold text-ink-secondary">/ {targetGoal} Cards Completed</span>
-			</div>
-
-			<!-- Segmented Progress Bar -->
-			<div class="h-2.5 w-full overflow-hidden rounded-full bg-border-subtle">
-				<div
-					class="h-full bg-primary transition-all duration-500 ease-out"
-					style="width: {goalPercentage}%;"
-				></div>
-			</div>
-		</section>
-
-		<!-- 3. Due Review Queue Banner -->
-		<section class="mb-6" aria-label="Review Queue">
-			{#if dueCount > 0}
-				<div class="rounded-2xl border border-primary/25 bg-surface p-5 text-ink-primary shadow-xs">
-					<div class="flex items-start justify-between">
+					<div class="flex items-center justify-between">
 						<div>
-							<span
-								class="inline-block rounded-md border border-primary/25 bg-primary/10 px-2 py-0.5 text-[11px] font-bold tracking-wider text-primary uppercase"
+							<span class="text-xs font-bold tracking-wider text-ink-muted uppercase"
+								>Daily Target</span
 							>
-								Due For Review
-							</span>
-							<h2 class="mt-2 text-2xl font-black text-ink-primary">
-								{dueCount}
-								{dueCount === 1 ? 'Card' : 'Cards'} Due
-							</h2>
-							<p class="mt-0.5 text-xs text-ink-secondary">
-								{vocabDue} Vocabulary · {grammarDue} Grammar
-							</p>
+							<h2 class="mt-0.5 text-base font-bold text-ink-primary">Today's Progress</h2>
+						</div>
+						<span class="text-xs font-bold text-primary">{goalPercentage}% Complete</span>
+					</div>
+
+					<div class="my-4 flex items-baseline gap-1.5">
+						<span class="text-3xl font-extrabold text-ink-primary">{completedToday}</span>
+						<span class="text-sm font-semibold text-ink-secondary"
+							>/ {targetGoal} Cards Completed</span
+						>
+					</div>
+				</div>
+
+				<!-- Segmented Progress Bar -->
+				<div class="h-2.5 w-full overflow-hidden rounded-full bg-border-subtle">
+					<div
+						class="h-full bg-primary transition-all duration-500 ease-out"
+						style="width: {goalPercentage}%;"
+					></div>
+				</div>
+			</section>
+
+			<!-- 3. Due Review Queue Banner -->
+			<section class="flex flex-col" aria-label="Review Queue">
+				{#if dueCount > 0}
+					<div
+						class="flex flex-1 flex-col justify-between rounded-2xl border border-primary/25 bg-surface p-5 text-ink-primary shadow-xs"
+					>
+						<div class="flex items-start justify-between">
+							<div>
+								<span
+									class="inline-block rounded-md border border-primary/25 bg-primary/10 px-2 py-0.5 text-[11px] font-bold tracking-wider text-primary uppercase"
+								>
+									Due For Review
+								</span>
+								<h2 class="mt-2 text-2xl font-black text-ink-primary">
+									{dueCount}
+									{dueCount === 1 ? 'Card' : 'Cards'} Due
+								</h2>
+								<p class="mt-0.5 text-xs text-ink-secondary">
+									{vocabDue} Vocabulary · {grammarDue} Grammar
+								</p>
+							</div>
+
+							<div
+								class="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-white shadow-xs"
+							>
+								<svg
+									class="h-6 w-6"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
+									<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+									<path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+								</svg>
+							</div>
 						</div>
 
+						<div class="mt-5">
+							<a href="/study" class="block">
+								<TactileButton variant="primary" size="lg" fullWidth>
+									<span>Start Review Session</span>
+									<svg
+										class="h-4 w-4"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										stroke-width="2.5"
+										stroke-linecap="round"
+										stroke-linejoin="round"
+									>
+										<line x1="5" y1="12" x2="19" y2="12"></line>
+										<polyline points="12 5 19 12 12 19"></polyline>
+									</svg>
+								</TactileButton>
+							</a>
+						</div>
+					</div>
+				{:else}
+					<div
+						class="flex flex-1 flex-col items-center justify-center rounded-2xl border border-celadon/40 bg-surface p-5 text-center shadow-xs"
+					>
 						<div
-							class="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-white shadow-xs"
+							class="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-celadon/10 text-celadon"
 						>
 							<svg
 								class="h-6 w-6"
 								viewBox="0 0 24 24"
 								fill="none"
 								stroke="currentColor"
-								stroke-width="2"
+								stroke-width="2.5"
 								stroke-linecap="round"
 								stroke-linejoin="round"
 							>
-								<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
-								<path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+								<polyline points="20 6 9 17 4 12"></polyline>
 							</svg>
 						</div>
+						<h2 class="text-lg font-bold text-ink-primary">All caught up for today!</h2>
+						<p class="mt-1 text-xs leading-relaxed text-ink-secondary">
+							No cards are currently due for review. Great work keeping your spaced repetition on
+							track.
+						</p>
+						<div class="mt-4 w-full">
+							<a href="/study" class="block">
+								<TactileButton variant="secondary" fullWidth>Practice Extra Cards</TactileButton>
+							</a>
+						</div>
 					</div>
-
-					<div class="mt-5">
-						<a href="/study" class="block">
-							<TactileButton variant="primary" size="lg" fullWidth>
-								<span>Start Review Session</span>
-								<svg
-									class="h-4 w-4"
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									stroke-width="2.5"
-									stroke-linecap="round"
-									stroke-linejoin="round"
-								>
-									<line x1="5" y1="12" x2="19" y2="12"></line>
-									<polyline points="12 5 19 12 12 19"></polyline>
-								</svg>
-							</TactileButton>
-						</a>
-					</div>
-				</div>
-			{:else}
-				<div class="rounded-2xl border border-celadon/40 bg-surface p-5 text-center shadow-xs">
-					<div
-						class="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-celadon/10 text-celadon"
-					>
-						<svg
-							class="h-6 w-6"
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2.5"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-						>
-							<polyline points="20 6 9 17 4 12"></polyline>
-						</svg>
-					</div>
-					<h2 class="text-lg font-bold text-ink-primary">All caught up for today!</h2>
-					<p class="mt-1 text-xs leading-relaxed text-ink-secondary">
-						No cards are currently due for review. Great work keeping your spaced repetition on
-						track.
-					</p>
-					<div class="mt-4">
-						<a href="/study" class="block">
-							<TactileButton variant="secondary" fullWidth>Practice Extra Cards</TactileButton>
-						</a>
-					</div>
-				</div>
-			{/if}
-		</section>
+				{/if}
+			</section>
+		</div>
 
 		<!-- 4. Study Decks Section -->
 		<section class="mb-4" aria-label="Your Decks">
@@ -276,8 +288,8 @@
 					<p class="mt-1 text-xs text-ink-secondary">Available study decks will appear here.</p>
 				</div>
 			{:else}
-				<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-					{#each decks.slice(0, 4) as deck (deck.id)}
+				<div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+					{#each decks.slice(0, 6) as deck (deck.id)}
 						<DeckCard {deck} />
 					{/each}
 				</div>
@@ -292,12 +304,12 @@
 	<!-- PUBLIC LANDING PAGE (UNAUTHENTICATED)     -->
 	<!-- ========================================== -->
 	<div
-		class="flex flex-1 flex-col px-4 pt-4 pb-28 sm:px-8"
+		class="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 pt-4 pb-28 sm:px-6 md:pb-16 lg:px-8"
 		style="padding-top: calc(var(--safe-top) + 16px);"
 	>
-		<!-- Public Navigation Header -->
+		<!-- Public Navigation Header (Mobile Only, Desktop uses DesktopHeader) -->
 		<header
-			class="mx-auto flex w-full max-w-4xl items-center justify-between border-b border-border-subtle pb-4"
+			class="mx-auto flex w-full max-w-5xl items-center justify-between border-b border-border-subtle pb-4 md:hidden"
 		>
 			<a href="/" class="flex items-center gap-2.5">
 				<div
@@ -513,8 +525,8 @@
 					<p class="mt-1 text-xs text-ink-secondary">Curated study decks will appear here soon.</p>
 				</div>
 			{:else}
-				<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-					{#each decks.slice(0, 4) as deck (deck.id)}
+				<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+					{#each decks.slice(0, 6) as deck (deck.id)}
 						<DeckCard {deck} />
 					{/each}
 				</div>
@@ -523,7 +535,7 @@
 
 		<!-- Bottom Call to Action Footer -->
 		<footer
-			class="mx-auto w-full max-w-4xl rounded-2xl border border-border-subtle bg-surface p-6 text-center shadow-xs"
+			class="mx-auto w-full max-w-5xl rounded-2xl border border-border-subtle bg-surface p-6 text-center shadow-xs"
 		>
 			<h2 class="font-hangul text-xl font-bold text-ink-primary">
 				Ready to start learning Korean?

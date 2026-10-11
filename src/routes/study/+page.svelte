@@ -209,6 +209,7 @@
 				example={studySession.currentCard.example}
 				isFlipped={studySession.isFlipped}
 				direction={studySession.studyDirection}
+				isRelearning={studySession.isCurrentCardRelearning}
 				onFlip={() => studySession.flipCard()}
 			/>
 

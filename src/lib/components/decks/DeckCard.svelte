@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { Deck } from '$lib/types';
 	import DeckTypeBadge from './DeckTypeBadge.svelte';
+	import DeckVisibilityBadge from './DeckVisibilityBadge.svelte';
 
 	interface Props {
 		deck: Deck;
@@ -15,6 +16,7 @@
 	<div>
 		<div class="flex items-center justify-between gap-2">
 			<DeckTypeBadge type={deck.type} />
+			<DeckVisibilityBadge {deck} />
 		</div>
 
 		<a href="/decks/{deck.id}" class="mt-3 block">

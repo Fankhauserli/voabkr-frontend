@@ -11,11 +11,15 @@
 	import ExitStudyModal from '$lib/components/study/ExitStudyModal.svelte';
 	import SEO from '$lib/components/seo/SEO.svelte';
 
+	import DesktopHeader from '$lib/components/navigation/DesktopHeader.svelte';
+	import { page } from '$app/state';
+
 	interface Props {
 		children?: Snippet;
 	}
 
 	let { children }: Props = $props();
+	let isStudyRoute = $derived(page.url.pathname.startsWith('/study'));
 
 	onMount(() => {
 		// Initialize native Capacitor status bar & back button
@@ -40,6 +44,13 @@
 		// Fetch current profile & settings
 		auth.fetchUser();
 
+		// Register PWA service worker for offline caching
+		if ('serviceWorker' in navigator && typeof window !== 'undefined') {
+			navigator.serviceWorker.register('/service-worker.js').catch((err) => {
+				console.debug('[PWA] Service worker registration note:', err);
+			});
+		}
+
 		return () => {
 			window.removeEventListener('session-expired', handleSessionExpired);
 			cleanBackButton.then((cleanup) => cleanup?.());
@@ -50,7 +61,11 @@
 <SEO />
 
 <div class="min-h-screen bg-canvas font-sans text-ink-primary">
-	<main class="mx-auto flex min-h-screen max-w-lg flex-col">
+	{#if !isStudyRoute}
+		<DesktopHeader />
+	{/if}
+
+	<main class="mx-auto flex min-h-screen w-full flex-col">
 		{#if children}
 			{@render children()}
 		{/if}

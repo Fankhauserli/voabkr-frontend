@@ -1,14 +1,21 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
+	import { goto } from '$app/navigation';
 	import { deckApi } from '$lib/api/decks';
 	import { cardApi } from '$lib/api/cards';
 	import { clientCache } from '$lib/api/cache';
+	import { auth } from '$lib/stores/auth.svelte';
+	import { modal } from '$lib/stores/modal.svelte';
 	import { toast } from '$lib/stores/toast.svelte';
 	import type { Deck, Card } from '$lib/types';
 	import DeckTypeBadge from '$lib/components/decks/DeckTypeBadge.svelte';
+	import DeckVisibilityBadge from '$lib/components/decks/DeckVisibilityBadge.svelte';
 	import CardListItem from '$lib/components/decks/CardListItem.svelte';
 	import TactileButton from '$lib/components/forms/TactileButton.svelte';
+	import DeckCreatorModal from '$lib/components/forms/DeckCreatorModal.svelte';
+	import DeckShareModal from '$lib/components/forms/DeckShareModal.svelte';
+	import CardCreatorModal from '$lib/components/forms/CardCreatorModal.svelte';
 
 	let deck = $state<Deck | null>(null);
 	let cards = $state<Card[]>([]);
@@ -17,6 +24,13 @@
 	let isLoading = $state(true);
 
 	let deckId = $derived(parseInt(page.params.id ?? '0', 10));
+
+	let isOwner = $derived(
+		deck &&
+			(deck.userAccessRole === 'owner' ||
+				(auth.user && (deck.ownerId === auth.user.id || deck.owner_id === auth.user.id)))
+	);
+	let canEdit = $derived(isOwner || deck?.userAccessRole === 'edit');
 
 	onMount(async () => {
 		await loadDeckAndCards();
@@ -102,7 +116,7 @@
 </svelte:head>
 
 <div
-	class="flex flex-1 flex-col px-4 pt-4 pb-28"
+	class="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 pt-4 pb-28 sm:px-6 md:pb-12 lg:px-8"
 	style="padding-top: calc(var(--safe-top) + 12px);"
 >
 	<!-- Navigation & Actions Header -->
@@ -116,11 +130,14 @@
 			</a>
 
 			{#if deck}
-				<DeckTypeBadge type={deck.type} />
+				<div class="flex items-center gap-2">
+					<DeckTypeBadge type={deck.type} />
+					<DeckVisibilityBadge {deck} />
+				</div>
 			{/if}
 		</div>
 
-		<div class="flex items-start justify-between gap-3">
+		<div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
 			<div>
 				<h1 class="font-hangul text-2xl font-bold tracking-tight break-keep text-ink-primary">
 					{deck?.name || 'Loading deck...'}
@@ -131,23 +148,92 @@
 				</p>
 			</div>
 
-			<a href="/study/{deckId}" class="shrink-0">
-				<TactileButton variant="primary" size="sm">
-					<span>Study Deck</span>
-					<svg
-						class="h-3.5 w-3.5"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2.5"
-						stroke-linecap="round"
-						stroke-linejoin="round"
+			<div class="flex flex-wrap items-center gap-2">
+				{#if isOwner && deck}
+					<TactileButton
+						variant="secondary"
+						size="sm"
+						onclick={() => modal.openDeckShare({ deck: deck! })}
 					>
-						<line x1="5" y1="12" x2="19" y2="12"></line>
-						<polyline points="12 5 19 12 12 19"></polyline>
-					</svg>
-				</TactileButton>
-			</a>
+						<svg
+							class="h-3.5 w-3.5"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						>
+							<circle cx="18" cy="5" r="3"></circle>
+							<circle cx="6" cy="12" r="3"></circle>
+							<circle cx="18" cy="19" r="3"></circle>
+							<line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+							<line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+						</svg>
+						<span>Share</span>
+					</TactileButton>
+				{/if}
+
+				{#if canEdit && deck}
+					<TactileButton
+						variant="secondary"
+						size="sm"
+						onclick={() => modal.openDeckCreator({ deckToEdit: deck! })}
+					>
+						<svg
+							class="h-3.5 w-3.5"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						>
+							<path d="M12 20h9"></path>
+							<path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+						</svg>
+						<span>Edit</span>
+					</TactileButton>
+
+					<TactileButton
+						variant="secondary"
+						size="sm"
+						onclick={() => modal.openCardCreator({ deckId })}
+					>
+						<svg
+							class="h-3.5 w-3.5"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						>
+							<line x1="12" y1="5" x2="12" y2="19"></line>
+							<line x1="5" y1="12" x2="19" y2="12"></line>
+						</svg>
+						<span>Add Card</span>
+					</TactileButton>
+				{/if}
+
+				<a href="/study/{deckId}" class="shrink-0">
+					<TactileButton variant="primary" size="sm">
+						<span>Study Deck</span>
+						<svg
+							class="h-3.5 w-3.5"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2.5"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						>
+							<line x1="5" y1="12" x2="19" y2="12"></line>
+							<polyline points="12 5 19 12 12 19"></polyline>
+						</svg>
+					</TactileButton>
+				</a>
+			</div>
 		</div>
 	</header>
 
@@ -215,7 +301,7 @@
 				</p>
 			</div>
 		{:else}
-			<div class="flex flex-col gap-2.5">
+			<div class="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
 				{#each visibleCards as card (card.id)}
 					<CardListItem {card} />
 				{/each}
@@ -236,3 +322,10 @@
 		{/if}
 	</main>
 </div>
+
+<!-- Modals -->
+<DeckCreatorModal onDeckSaved={loadDeckAndCards} onDeckDeleted={() => goto('/decks')} />
+{#if deck}
+	<DeckShareModal onShareUpdated={loadDeckAndCards} />
+{/if}
+<CardCreatorModal onCardSaved={loadDeckAndCards} />

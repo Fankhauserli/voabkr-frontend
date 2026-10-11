@@ -5,22 +5,67 @@
  */
 
 export type DeckType = 'vocabulary' | 'grammar';
+export type DeckAccessRole = 'owner' | 'edit' | 'view' | 'public';
 
 export interface Deck {
 	id: number;
 	name: string;
 	type: DeckType;
+	description?: string;
 	cardCount?: number;
 	dueCount?: number;
+	ownerId?: number;
+	owner_id?: number;
+	isPublic?: boolean;
+	is_public?: boolean;
+	shareToken?: string;
+	share_token?: string;
+	userAccessRole?: DeckAccessRole;
+	user_access_role?: DeckAccessRole;
 }
 
 export interface DeckRequest {
 	name: string;
 	type: DeckType;
+	description?: string;
+	isPublic?: boolean;
+	is_public?: boolean;
 }
 
 export interface CreateDeckRequest extends DeckRequest {}
 export interface UpdateDeckRequest extends DeckRequest {}
+
+export interface ShareDeckRequest {
+	email?: string;
+	permission?: 'view' | 'edit';
+}
+
+export interface DeckShareResponse {
+	shareToken?: string;
+	share_token?: string;
+	message?: string;
+}
+
+export interface SharedDeckPreview {
+	id: number;
+	name: string;
+	type: DeckType;
+	cardCount?: number;
+	ownerName?: string;
+	isPublic?: boolean;
+	is_public?: boolean;
+	permission?: 'view' | 'edit';
+	shareToken?: string;
+	share_token?: string;
+}
+
+export interface ForgotPasswordRequest {
+	email: string;
+}
+
+export interface ResetPasswordRequest {
+	password: string;
+}
 
 export interface Card {
 	id: number;
@@ -178,6 +223,10 @@ export interface StudySessionSummary {
 	ratingsCount: Record<SM2Rating, number>;
 	streakDays: number;
 	completedAt: string;
+	distinctCardsCount?: number;
+	relearningRepeats?: number;
+	remainingInDeck?: number;
+	batchNumber?: number;
 }
 
 export interface ApiResponse<T = unknown> {

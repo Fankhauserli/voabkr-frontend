@@ -1,6 +1,7 @@
 import type { Card, Deck } from '$lib/types';
 
-export type ActiveModalType = 'cardCreator' | 'deckCreator' | 'exitStudyConfirm' | null;
+export type ActiveModalType =
+	'cardCreator' | 'deckCreator' | 'deckShare' | 'exitStudyConfirm' | null;
 
 export interface CardCreatorModalData {
 	deckId?: number;
@@ -11,6 +12,10 @@ export interface DeckCreatorModalData {
 	deckToEdit?: Deck;
 }
 
+export interface DeckShareModalData {
+	deck: Deck;
+}
+
 export interface ExitStudyConfirmModalData {
 	onConfirm: () => void;
 }
@@ -19,11 +24,13 @@ class ModalStore {
 	activeModal = $state<ActiveModalType>(null);
 	cardCreatorData = $state<CardCreatorModalData | null>(null);
 	deckCreatorData = $state<DeckCreatorModalData | null>(null);
+	deckShareData = $state<DeckShareModalData | null>(null);
 	exitStudyConfirmData = $state<ExitStudyConfirmModalData | null>(null);
 
 	isOpen = $derived(this.activeModal !== null);
 	isCardCreatorOpen = $derived(this.activeModal === 'cardCreator');
 	isDeckCreatorOpen = $derived(this.activeModal === 'deckCreator');
+	isDeckShareOpen = $derived(this.activeModal === 'deckShare');
 	isExitStudyConfirmOpen = $derived(this.activeModal === 'exitStudyConfirm');
 
 	openCardCreator(data?: CardCreatorModalData) {
@@ -36,6 +43,11 @@ class ModalStore {
 		this.activeModal = 'deckCreator';
 	}
 
+	openDeckShare(data: DeckShareModalData) {
+		this.deckShareData = data;
+		this.activeModal = 'deckShare';
+	}
+
 	openExitStudyConfirm(onConfirm: () => void) {
 		this.exitStudyConfirmData = { onConfirm };
 		this.activeModal = 'exitStudyConfirm';
@@ -45,6 +57,7 @@ class ModalStore {
 		this.activeModal = null;
 		this.cardCreatorData = null;
 		this.deckCreatorData = null;
+		this.deckShareData = null;
 		this.exitStudyConfirmData = null;
 	}
 

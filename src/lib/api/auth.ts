@@ -52,5 +52,22 @@ export const authApi = {
 		apiFetch<ApiResponse>('/user/settings', {
 			method: 'PUT',
 			body: JSON.stringify(data)
+		}),
+
+	deleteAccount: () =>
+		apiFetch<ApiResponse>('/user', {
+			method: 'DELETE'
+		}),
+
+	forgotPassword: (email: string) =>
+		apiFetch<ApiResponse>('/forgot-password', {
+			method: 'POST',
+			body: JSON.stringify({ email })
+		}),
+
+	resetPassword: (token: string, password: string) =>
+		apiFetch<ApiResponse>(`/reset-password/${encodeURIComponent(token)}`, {
+			method: 'POST',
+			body: JSON.stringify({ password })
 		})
 };

@@ -15,7 +15,7 @@
 </script>
 
 <nav
-	class="fixed right-0 bottom-0 left-0 z-30 border-t border-border-subtle bg-surface"
+	class="fixed right-0 bottom-0 left-0 z-30 border-t border-border-subtle bg-surface md:hidden"
 	style="padding-bottom: var(--safe-bottom);"
 	aria-label="Bottom Navigation"
 >

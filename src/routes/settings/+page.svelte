@@ -11,6 +11,7 @@
 	import BottomNavBar from '$lib/components/navigation/BottomNavBar.svelte';
 	import TactileButton from '$lib/components/forms/TactileButton.svelte';
 	import TactileInput from '$lib/components/forms/TactileInput.svelte';
+	import BottomSheet from '$lib/components/forms/BottomSheet.svelte';
 
 	let name = $state('');
 	let isSavingName = $state(false);
@@ -18,6 +19,8 @@
 	let isResendingEmail = $state(false);
 	let selectedGoal = $state(20);
 	let currentTheme = $state<'light' | 'dark'>('light');
+	let showDeleteModal = $state(false);
+	let isDeletingAccount = $state(false);
 
 	$effect(() => {
 		if (auth.user) {
@@ -151,6 +154,23 @@
 			isLoggingOut = false;
 			toast.info('Logged out successfully');
 			goto('/login');
+		}
+	}
+
+	async function handleDeleteAccount() {
+		isDeletingAccount = true;
+		try {
+			await authApi.deleteAccount();
+			clientCache.clear();
+			reviewSync.clear();
+			auth.logout();
+			showDeleteModal = false;
+			toast.info('Your account and personal data have been completely deleted.');
+			goto('/');
+		} catch (err: unknown) {
+			toast.error(err instanceof Error ? err.message : 'Failed to delete account');
+		} finally {
+			isDeletingAccount = false;
 		}
 	}
 </script>
@@ -432,15 +452,16 @@
 					<div>
 						<span class="text-xs font-bold text-ink-primary">Account Deletion</span>
 						<p class="text-[11px] text-ink-secondary">
-							Permanently delete your account and records
+							Permanently wipe your account, study history, and custom decks
 						</p>
 					</div>
-					<a
-						href="mailto:privacy@voyagera.ch?subject=Account%20Deletion%20Request"
+					<button
+						type="button"
+						onclick={() => (showDeleteModal = true)}
 						class="text-xs font-semibold text-crimson underline"
 					>
-						Request Erasure
-					</a>
+						Delete Account
+					</button>
 				</div>
 			</div>
 		</section>
@@ -490,6 +511,51 @@
 		</section>
 	</div>
 </div>
+
+<!-- Account Deletion Confirmation Modal -->
+<BottomSheet
+	isOpen={showDeleteModal}
+	title="Permanently Delete Account"
+	onClose={() => (showDeleteModal = false)}
+>
+	<div class="flex flex-col gap-4 py-1">
+		<div
+			class="rounded-xl border border-crimson/40 bg-crimson/10 p-3.5 text-xs leading-relaxed text-crimson"
+		>
+			<p class="font-bold">Irreversible Action Warning</p>
+			<p class="mt-1">
+				This will permanently wipe your account, study history, and custom decks. This action cannot
+				be undone.
+			</p>
+		</div>
+
+		<p class="text-xs leading-relaxed text-ink-secondary">
+			Under GDPR (General Data Protection Regulation) and Swiss revDSG privacy principles, all of
+			your authentication sessions, profile records, and custom flashcards will be removed
+			immediately.
+		</p>
+
+		<div class="mt-2 flex items-center gap-2">
+			<TactileButton
+				type="button"
+				variant="secondary"
+				fullWidth
+				onclick={() => (showDeleteModal = false)}
+			>
+				Cancel
+			</TactileButton>
+			<TactileButton
+				type="button"
+				variant="danger"
+				fullWidth
+				loading={isDeletingAccount}
+				onclick={handleDeleteAccount}
+			>
+				Permanently Delete Account
+			</TactileButton>
+		</div>
+	</div>
+</BottomSheet>
 
 <!-- Bottom Navigation Bar -->
 <BottomNavBar activeRoute="/settings" />

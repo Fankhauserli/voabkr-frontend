@@ -7,21 +7,42 @@
 	import TactileButton from '$lib/components/forms/TactileButton.svelte';
 	import { selectionClick } from '$lib/utils/haptics';
 
-	let activeTab = $state<'login' | 'register'>('login');
+	let activeTab = $state<'login' | 'register' | 'forgot'>('login');
 	let name = $state('');
 	let email = $state('');
 	let password = $state('');
 	let isLoading = $state(false);
 	let errorMessage = $state<string | null>(null);
 	let registeredUnverified = $state(false);
+	let forgotSubmitted = $state(false);
 
-	function switchTab(tab: 'login' | 'register') {
+	function switchTab(tab: 'login' | 'register' | 'forgot') {
 		selectionClick();
 		activeTab = tab;
 		errorMessage = null;
+		forgotSubmitted = false;
 	}
 
 	async function handleSubmit() {
+		if (activeTab === 'forgot') {
+			if (!email.trim() || !email.includes('@')) {
+				errorMessage = 'Please provide a valid email address.';
+				return;
+			}
+			isLoading = true;
+			errorMessage = null;
+			try {
+				await authApi.forgotPassword(email.trim());
+				forgotSubmitted = true;
+				toast.success('Password reset instructions sent.');
+			} catch (err: unknown) {
+				errorMessage = err instanceof Error ? err.message : 'Failed to send reset link';
+			} finally {
+				isLoading = false;
+			}
+			return;
+		}
+
 		if (!email.trim() || !password) {
 			errorMessage = 'Please provide both email and password.';
 			return;
@@ -89,26 +110,42 @@
 		<!-- Auth Card -->
 		<div class="rounded-2xl border border-border-subtle bg-surface p-6 shadow-xs">
 			<!-- Segmented Pill Switcher -->
-			<div class="mb-6 grid grid-cols-2 rounded-xl border border-border-subtle bg-canvas p-1">
-				<button
-					type="button"
-					onclick={() => switchTab('login')}
-					class="min-h-[40px] rounded-lg text-xs font-bold transition {activeTab === 'login'
-						? 'bg-surface text-ink-primary shadow-xs'
-						: 'text-ink-secondary hover:text-ink-primary'}"
-				>
-					Log In
-				</button>
-				<button
-					type="button"
-					onclick={() => switchTab('register')}
-					class="min-h-[40px] rounded-lg text-xs font-bold transition {activeTab === 'register'
-						? 'bg-surface text-ink-primary shadow-xs'
-						: 'text-ink-secondary hover:text-ink-primary'}"
-				>
-					Create Account
-				</button>
-			</div>
+			{#if activeTab !== 'forgot'}
+				<div class="mb-6 grid grid-cols-2 rounded-xl border border-border-subtle bg-canvas p-1">
+					<button
+						type="button"
+						onclick={() => switchTab('login')}
+						class="min-h-[40px] rounded-lg text-xs font-bold transition {activeTab === 'login'
+							? 'bg-surface text-ink-primary shadow-xs'
+							: 'text-ink-secondary hover:text-ink-primary'}"
+					>
+						Log In
+					</button>
+					<button
+						type="button"
+						onclick={() => switchTab('register')}
+						class="min-h-[40px] rounded-lg text-xs font-bold transition {activeTab === 'register'
+							? 'bg-surface text-ink-primary shadow-xs'
+							: 'text-ink-secondary hover:text-ink-primary'}"
+					>
+						Create Account
+					</button>
+				</div>
+			{:else}
+				<div class="mb-4 flex items-center justify-between border-b border-border-subtle pb-3">
+					<div>
+						<h2 class="text-base font-bold text-ink-primary">Reset Password</h2>
+						<p class="text-xs text-ink-secondary">We'll email you a recovery link</p>
+					</div>
+					<button
+						type="button"
+						onclick={() => switchTab('login')}
+						class="text-xs font-semibold text-ink-muted hover:text-ink-primary"
+					>
+						← Back to Log In
+					</button>
+				</div>
+			{/if}
 
 			{#if errorMessage}
 				<div
@@ -125,60 +162,99 @@
 				</div>
 			{/if}
 
-			<!-- Form Inputs -->
-			<form
-				onsubmit={(e) => {
-					e.preventDefault();
-					handleSubmit();
-				}}
-				class="flex flex-col gap-4"
-			>
-				{#if activeTab === 'register'}
-					<TactileInput
-						id="name"
-						label="Full Name"
-						bind:value={name}
-						placeholder="Jane Doe"
-						required
-						autocomplete="name"
-					/>
-				{/if}
-
-				<TactileInput
-					id="email"
-					label="Email Address"
-					type="email"
-					bind:value={email}
-					placeholder="you@example.com"
-					required
-					autocomplete="email"
-				/>
-
-				<TactileInput
-					id="password"
-					label="Password"
-					type="password"
-					bind:value={password}
-					placeholder="••••••••"
-					required
-					autocomplete={activeTab === 'login' ? 'current-password' : 'new-password'}
-				/>
-
-				{#if activeTab === 'register'}
-					<p class="text-[11px] leading-relaxed text-ink-muted">
-						By creating an account, you agree to our
-						<a href="/terms" class="text-primary underline" target="_blank">Terms of Service</a>
-						and
-						<a href="/privacy" class="text-primary underline" target="_blank">Privacy Policy</a>.
+			{#if forgotSubmitted}
+				<div
+					class="rounded-xl border border-celadon/40 bg-celadon/10 p-3.5 text-xs leading-relaxed text-celadon"
+				>
+					<p class="font-bold">Check your inbox</p>
+					<p class="mt-1">
+						If an account exists for <span class="font-semibold">{email}</span>, a secure password
+						reset link has been dispatched.
 					</p>
-				{/if}
-
-				<div class="mt-2">
-					<TactileButton type="submit" variant="primary" loading={isLoading} fullWidth size="lg">
-						{activeTab === 'login' ? 'Log In' : 'Start Learning'}
-					</TactileButton>
+					<div class="mt-4">
+						<TactileButton variant="secondary" fullWidth onclick={() => switchTab('login')}>
+							Return to Log In
+						</TactileButton>
+					</div>
 				</div>
-			</form>
+			{:else}
+				<!-- Form Inputs -->
+				<form
+					onsubmit={(e) => {
+						e.preventDefault();
+						handleSubmit();
+					}}
+					class="flex flex-col gap-4"
+				>
+					{#if activeTab === 'register'}
+						<TactileInput
+							id="name"
+							label="Full Name"
+							bind:value={name}
+							placeholder="Jane Doe"
+							required
+							autocomplete="name"
+						/>
+					{/if}
+
+					<TactileInput
+						id="email"
+						label="Email Address"
+						type="email"
+						bind:value={email}
+						placeholder="you@example.com"
+						required
+						autocomplete="email"
+					/>
+
+					{#if activeTab !== 'forgot'}
+						<div class="flex flex-col gap-1.5">
+							<TactileInput
+								id="password"
+								label="Password"
+								type="password"
+								bind:value={password}
+								placeholder="••••••••"
+								required
+								autocomplete={activeTab === 'login' ? 'current-password' : 'new-password'}
+							/>
+
+							{#if activeTab === 'login'}
+								<div class="flex justify-end">
+									<button
+										type="button"
+										onclick={() => switchTab('forgot')}
+										class="text-xs font-medium text-ink-muted transition hover:text-primary"
+									>
+										Forgot password?
+									</button>
+								</div>
+							{/if}
+						</div>
+					{/if}
+
+					{#if activeTab === 'register'}
+						<p class="text-[11px] leading-relaxed text-ink-muted">
+							By creating an account, you agree to our
+							<a href="/terms" class="text-primary underline" target="_blank">Terms of Service</a>
+							and
+							<a href="/privacy" class="text-primary underline" target="_blank">Privacy Policy</a>.
+						</p>
+					{/if}
+
+					<div class="mt-2">
+						<TactileButton type="submit" variant="primary" loading={isLoading} fullWidth size="lg">
+							{#if activeTab === 'login'}
+								Log In
+							{:else if activeTab === 'register'}
+								Start Learning
+							{:else}
+								Send Reset Link
+							{/if}
+						</TactileButton>
+					</div>
+				</form>
+			{/if}
 		</div>
 
 		<!-- Footer notice & legal links -->

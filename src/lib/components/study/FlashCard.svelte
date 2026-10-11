@@ -10,6 +10,7 @@
 		isFlipped?: boolean;
 		onFlip?: () => void;
 		direction?: StudyDirection;
+		isRelearning?: boolean;
 	}
 
 	let {
@@ -19,7 +20,8 @@
 		example = '',
 		isFlipped = false,
 		onFlip,
-		direction = 'koreanToEnglish'
+		direction = 'koreanToEnglish',
+		isRelearning = false
 	}: Props = $props();
 
 	let promptWord = $derived(direction === 'englishToKorean' ? englishWord : koreanWord);
@@ -81,11 +83,20 @@
 			class="flashcard-face absolute inset-0 flex flex-col justify-between rounded-2xl bg-surface p-6"
 		>
 			<div class="flex items-center justify-between">
-				<span
-					class="rounded-md border border-border-subtle bg-canvas px-2.5 py-1 text-[11px] font-semibold tracking-wider text-ink-secondary uppercase"
-				>
-					{promptLabel}
-				</span>
+				<div class="flex items-center gap-2">
+					<span
+						class="rounded-md border border-border-subtle bg-canvas px-2.5 py-1 text-[11px] font-semibold tracking-wider text-ink-secondary uppercase"
+					>
+						{promptLabel}
+					</span>
+					{#if isRelearning}
+						<span
+							class="rounded-md border border-amber/35 bg-amber/15 px-2 py-0.5 text-[10px] font-bold text-amber"
+						>
+							Review Again · 재학습
+						</span>
+					{/if}
+				</div>
 				<span class="inline-flex items-center gap-1 text-xs text-ink-muted">
 					<span>Tap to flip</span>
 					<svg
