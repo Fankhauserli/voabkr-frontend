@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { StudySessionStore } from './study.svelte';
 import type { Card, SM2Rating } from '$lib/types';
 
-describe('StudySessionStore - In-Session Relearning Queue & Smart Ordering', () => {
+describe('StudySessionStore - Batching, hand-off, and the Session summary', () => {
 	let store: StudySessionStore;
 
 	const createMockCards = (count: number): Card[] => {
@@ -60,73 +60,43 @@ describe('StudySessionStore - In-Session Relearning Queue & Smart Ordering', () 
 		expect(reviews.submitted).toHaveLength(gradesGiven); // every Grade reached the injected sync queue
 	});
 
-	it('re-inserts card ~3 cards later when rated "Again" (Ease 1)', async () => {
-		const cards = createMockCards(10);
-		await store.startDeckSession(cards, 10, 10);
+	it('reports every Grade to the offline sync queue, whatever the Session queue decides', async () => {
+		await store.startDeckSession(createMockCards(4), 10, 4);
 
-		expect(store.totalCards).toBe(10);
-		expect(store.currentCard?.id).toBe(1);
+		await store.rateCurrentCard(2); // Card 1 Hard, outside a Relearning step: the queue does not bring it back
+		await store.rateCurrentCard(1); // Card 2 Again: the queue does bring it back
+		const gradesGiven = 2 + (await answerGoodUntilFinished(store));
 
-		// Rate Card 1 as "Again" (1)
-		await store.rateCurrentCard(1);
+		expect(gradesGiven).toBe(5);
+		expect(reviews.submitted.map((r) => r.cardId)).toEqual([1, 2, 3, 4, 2]);
+		expect(reviews.submitted.map((r) => r.grade)).toEqual([2, 1, 3, 3, 3]);
+	});
 
-		// Current card advances to Card 2
-		expect(store.currentIndex).toBe(1);
-		expect(store.currentCard?.id).toBe(2);
+	it('marks a Card that comes back as relearning, until it is answered Good', async () => {
+		await store.startDeckSession(createMockCards(4), 10, 4);
 
-		// Card 1 was re-inserted 3 cards later (at index 4)
-		// Expected queue: [Card 1, Card 2, Card 3, Card 4, Card 1, Card 5, Card 6, Card 7, Card 8, Card 9, Card 10]
-		expect(store.totalCards).toBe(11);
-		expect(store.cards[4].id).toBe(1);
-		expect(store.relearningCardIds.has(1)).toBe(true);
+		await store.rateCurrentCard(1); // Card 1 Again: it returns three Cards later
+		expect(store.isCurrentCardRelearning).toBe(false);
 
-		// Advance through Card 2, Card 3, Card 4
-		await store.rateCurrentCard(3); // Card 2 -> Good
-		await store.rateCurrentCard(3); // Card 3 -> Good
-		await store.rateCurrentCard(3); // Card 4 -> Good
+		await store.rateCurrentCard(3); // Card 2
+		await store.rateCurrentCard(3); // Card 3
+		await store.rateCurrentCard(3); // Card 4
 
-		// Now we should be at index 4, which is Card 1 again!
-		expect(store.currentIndex).toBe(4);
 		expect(store.currentCard?.id).toBe(1);
 		expect(store.isCurrentCardRelearning).toBe(true);
+
+		await store.rateCurrentCard(3); // Card 1 Good
+		expect(store.isSessionFinished).toBe(true);
 	});
 
-	it('graduates card when answered "Good" or "Easy" on retry', async () => {
-		const cards = createMockCards(5);
-		await store.startDeckSession(cards, 10, 5);
+	it('does not finish a Study session while a Card is in a Relearning step', async () => {
+		await store.startDeckSession(createMockCards(2), 10, 2);
 
-		// Card 1 -> Again (1)
-		await store.rateCurrentCard(1);
-		expect(store.relearningCardIds.has(1)).toBe(true);
+		await store.rateCurrentCard(3); // Card 1 Good
+		await store.rateCurrentCard(1); // Card 2 Again, with nothing behind it
 
-		// Advance to Card 1 retry
-		await store.rateCurrentCard(3); // Card 2 -> Good
-		await store.rateCurrentCard(3); // Card 3 -> Good
-		await store.rateCurrentCard(3); // Card 4 -> Good
-		expect(store.currentCard?.id).toBe(1);
-
-		// Now rate Card 1 as "Good" (3)
-		await store.rateCurrentCard(3);
-
-		// Card 1 graduates from relearning
-		expect(store.relearningCardIds.has(1)).toBe(false);
-		expect(store.relearningRepeats).toBe(1);
-	});
-
-	it('handles "Again" on the last remaining card by placing it at the end', async () => {
-		const cards = createMockCards(2);
-		await store.startDeckSession(cards, 10, 2);
-
-		// Card 1 -> Good
-		await store.rateCurrentCard(3);
-		expect(store.currentCard?.id).toBe(2);
-
-		// Card 2 -> Again (1)
-		await store.rateCurrentCard(1);
-
-		// Card 2 is re-inserted and queue has length 3
-		expect(store.totalCards).toBe(3);
-		expect(store.currentIndex).toBe(2);
+		expect(store.isActive).toBe(true);
+		expect(store.isSessionFinished).toBe(false);
 		expect(store.currentCard?.id).toBe(2);
 		expect(store.isCurrentCardRelearning).toBe(true);
 	});
@@ -155,10 +125,11 @@ describe('StudySessionStore - In-Session Relearning Queue & Smart Ordering', () 
 		expect(store.batchNumber).toBe(2);
 		expect(store.totalCards).toBe(20);
 		expect(store.currentCard?.id).toBe(21);
+		expect(store.answeredCount).toBe(0);
 		expect(store.remainingDeckCards.length).toBe(60);
 	});
 
-	it('orders cards with due/reviewed cards first before new cards', async () => {
+	it('presents due/reviewed cards before new cards', async () => {
 		const mixedCards: Card[] = [
 			{
 				id: 1,
@@ -200,29 +171,32 @@ describe('StudySessionStore - In-Session Relearning Queue & Smart Ordering', () 
 
 		await store.startDeckSession(mixedCards, 1, 10);
 
-		// Reviewed cards (2 and 4) should be first, followed by unreviewed (1 and 3)
-		expect(store.cards[0].id).toBe(2);
-		expect(store.cards[1].id).toBe(4);
-		expect(store.cards[2].id).toBe(1);
-		expect(store.cards[3].id).toBe(3);
+		// Reviewed cards (2 and 4) come first, followed by the unreviewed (1 and 3)
+		const presented: number[] = [];
+		for (let i = 0; i < 4; i++) {
+			presented.push(store.currentCard?.id ?? 0);
+			await store.rateCurrentCard(3);
+		}
+
+		expect(presented).toEqual([2, 4, 1, 3]);
 	});
 
-	it('computes retention rate based on first attempt pass rate', async () => {
+	it('derives Retention from the first Grade each Card was given', async () => {
 		const cards = createMockCards(4);
 		await store.startDeckSession(cards, 10, 4);
 
-		// Card 1: Again (fail first try)
+		// Card 1: Again — not retained
 		await store.rateCurrentCard(1);
-		// Card 2: Good (pass first try)
+		// Card 2: Good — retained
 		await store.rateCurrentCard(3);
-		// Card 3: Easy (pass first try)
+		// Card 3: Easy — retained
 		await store.rateCurrentCard(4);
-		// Card 4: Again (fail first try)
+		// Card 4: Again — not retained
 		await store.rateCurrentCard(1);
 
-		// Retrying Card 1 -> Good
+		// Card 1 returns from its Relearning step -> Good
 		await store.rateCurrentCard(3);
-		// Retrying Card 4 -> Good
+		// Card 4 returns from its Relearning step -> Good
 		await store.rateCurrentCard(3);
 
 		expect(store.isSessionFinished).toBe(true);
