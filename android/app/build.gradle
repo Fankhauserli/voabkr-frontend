@@ -1,5 +1,24 @@
 apply plugin: 'com.android.application'
 
+// The version fields the release pipeline injects as Gradle properties, e.g.
+// `-PversionCode=10000011 -PversionName=0.1.0-pre.11`. The pipeline injects both;
+// a local build injects neither and keeps the placeholders this module has
+// always carried.
+def injectedVersionCode = (project.findProperty('versionCode') ?: 1) as int
+def injectedVersionName = project.findProperty('versionName') ?: '1.0'
+
+// The release signing configuration, written by CI from secrets and git-ignored:
+// a properties file holding storeFile, storePassword, keyAlias and keyPassword.
+// A relative storeFile resolves against this module's directory. When the file
+// is absent — no secrets on this machine, or a fork build — the release build
+// falls back to the debug signing configuration below.
+def keystorePropertiesFile = rootProject.file('keystore.properties')
+def hasKeystore = keystorePropertiesFile.exists()
+def keystoreProperties = new Properties()
+if (hasKeystore) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
 android {
     namespace = "com.voyagera.vocabkr"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -7,8 +26,8 @@ android {
         applicationId "com.voyagera.vocabkr"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode injectedVersionCode
+        versionName injectedVersionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,10 +35,21 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        if (hasKeystore) {
+            release {
+                storeFile file(keystoreProperties.getProperty('storeFile'))
+                storePassword keystoreProperties.getProperty('storePassword')
+                keyAlias keystoreProperties.getProperty('keyAlias')
+                keyPassword keystoreProperties.getProperty('keyPassword')
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            signingConfig hasKeystore ? signingConfigs.release : signingConfigs.debug
         }
     }
 }
