@@ -72,16 +72,6 @@ dependencies {
     implementation project(':capacitor-cordova-android-plugins')
 }
 
-subprojects {
-    plugins.withType(JavaBasePlugin) {
-        java {
-            toolchain {
-                languageVersion = JavaLanguageVersion.of(21)
-            }
-        }
-    }
-}
-
 apply from: 'capacitor.build.gradle'
 
 try {
