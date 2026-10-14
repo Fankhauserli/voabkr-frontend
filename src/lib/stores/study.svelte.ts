@@ -6,6 +6,23 @@ import { reviewSync } from './syncQueue.svelte';
 import { hapticFeedback } from '$lib/utils/haptics';
 import { SvelteDate, SvelteSet, SvelteMap } from 'svelte/reactivity';
 
+/** Where the Study session sends a Grade: the offline sync queue in the app. */
+export interface ReviewSink {
+	addReview(cardId: number, grade: SM2Rating): Promise<{ synced: boolean }>;
+}
+
+/** The tactile feedback the Study session asks for: the haptics module in the app. Fire-and-forget. */
+export interface HapticFeedback {
+	cardFlip(): void;
+	sm2Rating(grade: SM2Rating): void;
+}
+
+/** The Study session's collaborators, supplied when it is constructed. */
+export interface StudySessionCollaborators {
+	reviews: ReviewSink;
+	haptics: HapticFeedback;
+}
+
 /**
  * Intelligent spaced repetition study session store using Svelte 5 runes.
  * Implements Anki/SuperMemo-style in-session relearning queues:
@@ -36,6 +53,9 @@ function setStoredValue(key: string, value: string): void {
 }
 
 class StudySessionStore {
+	private readonly reviews: ReviewSink;
+	private readonly haptics: HapticFeedback;
+
 	/** Active queue of cards to review in the current batch (includes relearning repetitions) */
 	cards = $state<Card[]>([]);
 
@@ -93,7 +113,10 @@ class StudySessionStore {
 	/** Current deck ID (null if global due queue) */
 	sessionDeckId = $state<number | null>(null);
 
-	constructor() {
+	constructor(collaborators: StudySessionCollaborators) {
+		this.reviews = collaborators.reviews;
+		this.haptics = collaborators.haptics;
+
 		const saved = getStoredValue('voabkr_study_direction') as StudyDirection | null;
 		if (saved === 'koreanToEnglish' || saved === 'englishToKorean') {
 			this.studyDirection = saved;
@@ -247,7 +270,7 @@ class StudySessionStore {
 
 	flipCard(): void {
 		this.isFlipped = !this.isFlipped;
-		hapticFeedback.cardFlip();
+		this.haptics.cardFlip();
 	}
 
 	/**
@@ -262,7 +285,7 @@ class StudySessionStore {
 
 		const card = this.currentCard;
 		const cardId = card.id;
-		hapticFeedback.sm2Rating(ease);
+		this.haptics.sm2Rating(ease);
 
 		// Record first attempt rating for accurate retention metrics
 		if (!this.firstAttemptRatings.has(cardId)) {
@@ -270,8 +293,8 @@ class StudySessionStore {
 		}
 		this.ratingsRecorded.push({ cardId, ease });
 
-		// Optimistic submission via sync queue to backend
-		reviewSync.addReview(cardId, ease);
+		// Optimistic submission via sync queue to backend (unawaited: the Grade must not block the UI)
+		void this.reviews.addReview(cardId, ease);
 
 		// ── SMART IN-SESSION SPACING ──
 		if (ease === 1) {
@@ -407,5 +430,8 @@ class StudySessionStore {
 	}
 }
 
-export const studySession = new StudySessionStore();
+export const studySession = new StudySessionStore({
+	reviews: reviewSync,
+	haptics: hapticFeedback
+});
 export { StudySessionStore };

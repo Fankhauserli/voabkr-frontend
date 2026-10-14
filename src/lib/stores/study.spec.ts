@@ -1,21 +1,6 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { StudySessionStore } from './study.svelte';
-import type { Card } from '$lib/types';
-
-// Mock reviewSync to prevent real network calls
-vi.mock('./syncQueue.svelte', () => ({
-	reviewSync: {
-		addReview: vi.fn().mockResolvedValue({ synced: true })
-	}
-}));
-
-// Mock haptics
-vi.mock('$lib/utils/haptics', () => ({
-	hapticFeedback: {
-		sm2Rating: vi.fn(),
-		cardFlip: vi.fn()
-	}
-}));
+import type { Card, SM2Rating } from '$lib/types';
 
 describe('StudySessionStore - In-Session Relearning Queue & Smart Ordering', () => {
 	let store: StudySessionStore;
@@ -31,8 +16,48 @@ describe('StudySessionStore - In-Session Relearning Queue & Smart Ordering', () 
 		}));
 	};
 
+	const createInMemoryReviews = () => {
+		const submitted: { cardId: number; grade: SM2Rating }[] = [];
+		return {
+			submitted,
+			async addReview(cardId: number, grade: SM2Rating) {
+				submitted.push({ cardId, grade });
+				return { synced: true };
+			}
+		};
+	};
+
+	const createNoopHaptics = () => ({ cardFlip() {}, sm2Rating() {} });
+
+	/** Answers every remaining Card Good, returning how many Grades that took. */
+	const answerGoodUntilFinished = async (session: StudySessionStore): Promise<number> => {
+		let grades = 0;
+		while (!session.isSessionFinished) {
+			if (grades >= 100) throw new Error('Study session never finished');
+			await session.rateCurrentCard(3);
+			grades += 1;
+		}
+		return grades;
+	};
+
+	let reviews: ReturnType<typeof createInMemoryReviews>;
+
 	beforeEach(() => {
-		store = new StudySessionStore();
+		reviews = createInMemoryReviews();
+		store = new StudySessionStore({ reviews, haptics: createNoopHaptics() });
+	});
+
+	it('finishes a Study session driven only through its injected collaborators', async () => {
+		await store.startDeckSession(createMockCards(5), 10, 5);
+		expect(store.isActive).toBe(true);
+
+		await store.rateCurrentCard(1); // Card 1 -> Again, so it must come back before the session ends
+		const gradesGiven = 1 + (await answerGoodUntilFinished(store));
+
+		expect(store.isSessionFinished).toBe(true);
+		expect(store.lastSessionSummary?.distinctCardsCount).toBe(5);
+		expect(gradesGiven).toBe(6); // one Grade more than distinct Cards: the failed Card returned
+		expect(reviews.submitted).toHaveLength(gradesGiven); // every Grade reached the injected sync queue
 	});
 
 	it('re-inserts card ~3 cards later when rated "Again" (Ease 1)', async () => {
@@ -118,9 +143,7 @@ describe('StudySessionStore - In-Session Relearning Queue & Smart Ordering', () 
 		expect(store.batchNumber).toBe(1);
 
 		// Complete batch 1
-		while (!store.isSessionFinished) {
-			await store.rateCurrentCard(3); // All Good
-		}
+		await answerGoodUntilFinished(store);
 
 		expect(store.isSessionFinished).toBe(true);
 		expect(store.lastSessionSummary?.batchNumber).toBe(1);
