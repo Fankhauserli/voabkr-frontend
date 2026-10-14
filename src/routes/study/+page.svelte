@@ -155,7 +155,10 @@
 		</div>
 
 		{#if studySession.totalCards > 0}
-			<SessionProgressBar current={studySession.currentIndex + 1} total={studySession.totalCards} />
+			<SessionProgressBar
+				current={studySession.answeredCount + 1}
+				total={studySession.totalCards}
+			/>
 		{/if}
 	</header>
 
