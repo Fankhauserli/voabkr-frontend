@@ -55,7 +55,7 @@ describe('StudySessionStore - Batching, hand-off, and the Session summary', () =
 		const gradesGiven = 1 + (await answerGoodUntilFinished(store));
 
 		expect(store.isSessionFinished).toBe(true);
-		expect(store.lastSessionSummary?.distinctCardsCount).toBe(5);
+		expect(store.sessionSummary?.distinctCardsCount).toBe(5);
 		expect(gradesGiven).toBe(6); // one Grade more than distinct Cards: the failed Card returned
 		expect(reviews.submitted).toHaveLength(gradesGiven); // every Grade reached the injected sync queue
 	});
@@ -116,8 +116,8 @@ describe('StudySessionStore - Batching, hand-off, and the Session summary', () =
 		await answerGoodUntilFinished(store);
 
 		expect(store.isSessionFinished).toBe(true);
-		expect(store.lastSessionSummary?.batchNumber).toBe(1);
-		expect(store.lastSessionSummary?.remainingInDeck).toBe(80);
+		expect(store.sessionSummary?.batchNumber).toBe(1);
+		expect(store.sessionSummary?.remainingInDeck).toBe(80);
 
 		// Start Next Batch
 		const startedNext = store.startNextBatch();
@@ -181,9 +181,11 @@ describe('StudySessionStore - Batching, hand-off, and the Session summary', () =
 		expect(presented).toEqual([2, 4, 1, 3]);
 	});
 
-	it('derives Retention from the first Grade each Card was given', async () => {
+	it('derives the Session summary from the Session queue record, mixing first attempts and returns', async () => {
 		const cards = createMockCards(4);
 		await store.startDeckSession(cards, 10, 4);
+
+		expect(store.sessionSummary).toBeNull(); // no Study session has finished yet
 
 		// Card 1: Again — not retained
 		await store.rateCurrentCard(1);
@@ -194,15 +196,22 @@ describe('StudySessionStore - Batching, hand-off, and the Session summary', () =
 		// Card 4: Again — not retained
 		await store.rateCurrentCard(1);
 
+		expect(store.sessionSummary).toBeNull(); // Cards 1 and 4 are still in Relearning steps
+
 		// Card 1 returns from its Relearning step -> Good
 		await store.rateCurrentCard(3);
 		// Card 4 returns from its Relearning step -> Good
 		await store.rateCurrentCard(3);
 
 		expect(store.isSessionFinished).toBe(true);
-		// 2 passed on first attempt out of 4 distinct cards = 50% retention
-		expect(store.lastSessionSummary?.retentionRate).toBe(50);
-		expect(store.lastSessionSummary?.distinctCardsCount).toBe(4);
-		expect(store.lastSessionSummary?.relearningRepeats).toBe(2);
+		expect(store.sessionSummary).toMatchObject({
+			// four distinct Cards studied, but six Grades given: the returns are counted separately
+			distinctCardsCount: 4,
+			totalReviewed: 6,
+			// two Cards came back from a Relearning step
+			relearningRepeats: 2,
+			// only first Grades count: 2 of 4 Cards were answered correctly first time
+			retentionRate: 50
+		});
 	});
 });

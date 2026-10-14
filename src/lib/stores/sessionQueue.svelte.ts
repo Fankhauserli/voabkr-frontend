@@ -37,6 +37,9 @@ export class SessionQueue {
 	/** How many returns from Relearning steps have been enacted. */
 	#relearningReturns = $state(0);
 
+	/** When the last Card was answered; null until the queue is finished. */
+	#finishedAt = $state<Date | null>(null);
+
 	constructor(cards: readonly Card[] = []) {
 		this.#pending = [...cards];
 	}
@@ -87,8 +90,17 @@ export class SessionQueue {
 		return this.#relearningReturns;
 	}
 
-	/** Answer the current Card with a Grade, and return the Card it was for. */
-	answer(grade: SM2Rating): Card | null {
+	/** When the last Card was answered; null while any Card is still to answer. */
+	get finishedAt(): Date | null {
+		return this.#finishedAt;
+	}
+
+	/**
+	 * Answer the current Card with a Grade, and return the Card it was for.
+	 * `answeredAt` is the instant the Grade was given, supplied by the caller: the queue
+	 * never reads a clock.
+	 */
+	answer(grade: SM2Rating, answeredAt: Date): Card | null {
 		const card = this.#pending.shift() ?? null;
 		if (!card) return null;
 
@@ -109,6 +121,10 @@ export class SessionQueue {
 		} else {
 			// Good and Easy end the Card's Relearning step.
 			this.#relearning.delete(card.id);
+		}
+
+		if (this.#pending.length === 0) {
+			this.#finishedAt = answeredAt;
 		}
 
 		return card;

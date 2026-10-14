@@ -4,7 +4,7 @@
 	import TactileButton from '$lib/components/forms/TactileButton.svelte';
 
 	let summary = $derived(
-		studySession.lastSessionSummary ?? {
+		studySession.sessionSummary ?? {
 			totalReviewed: 10,
 			retentionRate: 85,
 			ratingsCount: { 0: 0, 1: 1, 2: 0, 3: 2, 4: 4, 5: 3 },
