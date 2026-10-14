@@ -143,3 +143,117 @@ jobs:
             git push origin "v${next}" || true
             echo "✅ Created and pushed git tag v${next}"
           fi
+
+  # The APK the release publishes: the static web build — never the Node SSR
+  # build — synced into the checked-in Android platform project, assembled with
+  # the version the prepare job computed, then verified and uploaded as a
+  # workflow artifact. It needs no secrets: without the release keystore the
+  # app module falls back to debug signing, so fork pull requests get an
+  # installable APK too.
+  android:
+    needs: prepare
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build the static web bundle
+        env:
+          # Setting the VITE_API_URL repository variable points the APK at that
+          # backend; unset, the client keeps its built-in production default.
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
+        run: bun run build:static
+
+      - name: Sync the web bundle into the Android project
+        run: bunx cap sync android
+
+      - name: Encode the version fields
+        id: versioning
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          bun src/lib/release/version-cli.ts "${VERSION}" | tee -a "${GITHUB_OUTPUT}"
+
+      - name: Assemble the release APK
+        working-directory: android
+        env:
+          VERSION_CODE: ${{ steps.versioning.outputs.versionCode }}
+          VERSION_NAME: ${{ steps.versioning.outputs.versionName }}
+        run: ./gradlew assembleRelease -PversionCode="${VERSION_CODE}" -PversionName="${VERSION_NAME}"
+
+      - name: Verify the APK
+        env:
+          VERSION_CODE: ${{ steps.versioning.outputs.versionCode }}
+          VERSION_NAME: ${{ steps.versioning.outputs.versionName }}
+        run: |
+          set -euo pipefail
+
+          apk='android/app/build/outputs/apk/release/app-release.apk'
+          build_tools="$(ls -d "${ANDROID_HOME}"/build-tools/*/ | sort -V | tail -n 1)"
+
+          # A signature that does not verify, or a version that is not the
+          # run's, fails the job here — before anything is uploaded. The package
+          # line of the badging carries the manifest's own versionCode and
+          # versionName; the capitalized platformBuildVersion* fields do not.
+          "${build_tools}apksigner" verify --print-certs "${apk}"
+          badging="$("${build_tools}aapt2" dump badging "${apk}")"
+          package_line="${badging%%$'\n'*}"
+          version_code="$(grep -oE "versionCode='[0-9]+'" <<<"${package_line}" | cut -d"'" -f2)"
+          version_name="$(grep -oE "versionName='[^']*'" <<<"${package_line}" | cut -d"'" -f2)"
+
+          if [[ "${version_code}" != "${VERSION_CODE}" || "${version_name}" != "${VERSION_NAME}" ]]; then
+            echo "::error::The APK carries versionCode='${version_code}' versionName='${version_name}', expected '${VERSION_CODE}' and '${VERSION_NAME}'"
+            exit 1
+          fi
+
+          # The packaged assets are the static build: its entry point is inside
+          # the APK, the Node server build's is not.
+          listing="$(unzip -l "${apk}")"
+          if ! grep -q 'assets/public/index.html' <<<"${listing}"; then
+            echo '::error::The APK does not embed the static web build: assets/public/index.html is missing'
+            exit 1
+          fi
+          if grep -q 'assets/public/index.js' <<<"${listing}"; then
+            echo '::error::The APK embeds the Node server build, not the static web build'
+            exit 1
+          fi
+
+          echo "Verified ${apk}: versionCode=${version_code}, versionName='${version_name}'"
+
+      - name: Stage the APK for upload
+        env:
+          ASSET_NAME: ${{ steps.versioning.outputs.assetName }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p artifacts
+          cp android/app/build/outputs/apk/release/app-release.apk "artifacts/${ASSET_NAME}"
+
+      - name: Upload the APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.versioning.outputs.assetName }}
+          path: artifacts/${{ steps.versioning.outputs.assetName }}
+          if-no-files-found: error

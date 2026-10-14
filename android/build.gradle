@@ -24,6 +24,19 @@ allprojects {
     }
 }
 
+// Every module — the app and the Capacitor plugin modules alike — compiles with
+// JDK 21, whichever JVM runs Gradle itself, so the build no longer depends on a
+// JDK path pinned to one machine.
+subprojects {
+    plugins.withType(JavaBasePlugin) {
+        java {
+            toolchain {
+                languageVersion = JavaLanguageVersion.of(21)
+            }
+        }
+    }
+}
+
 task clean(type: Delete) {
     delete rootProject.buildDir
 }
