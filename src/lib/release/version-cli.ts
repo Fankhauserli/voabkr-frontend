@@ -14,7 +14,7 @@ import { encodeVersion, type AndroidVersionFields } from './version';
 const USAGE = 'usage: version-cli <version>, e.g. version-cli 0.1.0-pre.11';
 
 /** The fields as the `key=value` lines a workflow consumes, newline-terminated. */
-export function formatVersionFields(fields: AndroidVersionFields): string {
+function formatVersionFields(fields: AndroidVersionFields): string {
 	return [
 		`versionCode=${fields.versionCode}`,
 		`versionName=${fields.versionName}`,

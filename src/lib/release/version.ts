@@ -10,7 +10,8 @@
  * A version this module cannot encode faithfully is rejected rather than
  * silently mis-encoded: anything but `major.minor.patch` with an optional
  * `-pre.ordinal`, numbers written without leading zeros, a minor and patch that
- * fit their two-digit fields, and a result inside the range Android accepts.
+ * fit their two-digit fields, and a version code that fits the signed 32-bit
+ * integer Android reads it as.
  */
 
 /**
@@ -21,18 +22,21 @@
  *     10^9      10^7      10^5      10^0
  *
  * A final release carries 999 in the ordinal field, placing it above every
- * pre-release of the same base version and below every later version.
+ * pre-release of the same base version and below every later version. The code
+ * has to stay inside the signed 32-bit integer Android reads it as, which is
+ * what bounds major at 2.
  */
-const VERSION_CODE_MAJOR_SHIFT = 1_000_000_000;
-const VERSION_CODE_MINOR_SHIFT = 10_000_000;
-const VERSION_CODE_PATCH_SHIFT = 100_000;
+const VERSION_CODE_MAJOR_PLACE = 1_000_000_000;
+const VERSION_CODE_MINOR_PLACE = 10_000_000;
+const VERSION_CODE_PATCH_PLACE = 100_000;
 const FINAL_RELEASE_ORDINAL = 999;
 
-/** The widest minor and patch a two-digit field holds. */
-const FIELD_LIMIT = 100;
+/** The exclusive bound of a two-digit field: minor and patch each hold 0..99. */
+const TWO_DIGIT_FIELD_LIMIT = 100;
 
-/** Android's own ceiling: above this, a version code is not accepted. */
-const MAX_VERSION_CODE = 2_100_000_000;
+/** Android reads a version code as a signed 32-bit integer, positive and no larger. */
+const MIN_VERSION_CODE = 1;
+const MAX_VERSION_CODE = 2_147_483_647;
 
 /** `0.1.0-pre.11` — the version string, pre-release part optional. */
 const VERSION_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-pre\.(0|[1-9]\d*))?$/;
@@ -75,12 +79,9 @@ export function encodeVersion(version: string): AndroidVersionFields {
 	const patch = Number(match[3]);
 	const ordinal = match[4] === undefined ? undefined : Number(match[4]);
 
-	if (minor >= FIELD_LIMIT) {
-		throw new InvalidVersionError(version, `minor must be below ${FIELD_LIMIT}`);
-	}
-	if (patch >= FIELD_LIMIT) {
-		throw new InvalidVersionError(version, `patch must be below ${FIELD_LIMIT}`);
-	}
+	checkTwoDigitField(minor, 'minor', version);
+	checkTwoDigitField(patch, 'patch', version);
+
 	if (ordinal !== undefined && ordinal >= FINAL_RELEASE_ORDINAL) {
 		throw new InvalidVersionError(
 			version,
@@ -90,15 +91,15 @@ export function encodeVersion(version: string): AndroidVersionFields {
 	}
 
 	const versionCode =
-		major * VERSION_CODE_MAJOR_SHIFT +
-		minor * VERSION_CODE_MINOR_SHIFT +
-		patch * VERSION_CODE_PATCH_SHIFT +
+		major * VERSION_CODE_MAJOR_PLACE +
+		minor * VERSION_CODE_MINOR_PLACE +
+		patch * VERSION_CODE_PATCH_PLACE +
 		(ordinal ?? FINAL_RELEASE_ORDINAL);
 
-	if (versionCode < 1 || versionCode > MAX_VERSION_CODE) {
+	if (versionCode < MIN_VERSION_CODE || versionCode > MAX_VERSION_CODE) {
 		throw new InvalidVersionError(
 			version,
-			`version code ${versionCode} is outside the 1..${MAX_VERSION_CODE} Android accepts`
+			`version code ${versionCode} leaves Android's ${MIN_VERSION_CODE}..${MAX_VERSION_CODE} range`
 		);
 	}
 
@@ -108,4 +109,11 @@ export function encodeVersion(version: string): AndroidVersionFields {
 		prerelease: ordinal !== undefined,
 		assetName: `${APP_NAME}-${version}.apk`
 	};
+}
+
+/** Rejects a component too wide for the field its place in the code gives it. */
+function checkTwoDigitField(value: number, field: 'minor' | 'patch', version: string): void {
+	if (value >= TWO_DIGIT_FIELD_LIMIT) {
+		throw new InvalidVersionError(version, `${field} must be below ${TWO_DIGIT_FIELD_LIMIT}`);
+	}
 }

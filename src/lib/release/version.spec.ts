@@ -72,8 +72,10 @@ describe('encodeVersion', () => {
 		expect(() => encodeVersion('0.1.100')).toThrow(InvalidVersionError);
 	});
 
-	it('rejects a version whose code is outside the range Android accepts', () => {
+	it('rejects a version whose code is outside the signed 32-bit integer Android reads', () => {
 		expect(() => encodeVersion('0.0.0-pre.0')).toThrow(InvalidVersionError);
 		expect(() => encodeVersion('3.0.0')).toThrow(InvalidVersionError);
+
+		expect(encodeVersion('2.10.0').versionCode).toBe(2100000999);
 	});
 });
