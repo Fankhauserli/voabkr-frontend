@@ -68,9 +68,6 @@ class StudySessionStore {
 	/** Error message if loading failed */
 	error = $state<string | null>(null);
 
-	/** Summary of completed session */
-	lastSessionSummary = $state<StudySessionSummary | null>(null);
-
 	/** Study direction preference */
 	studyDirection = $state<StudyDirection>('koreanToEnglish');
 
@@ -136,6 +133,43 @@ class StudySessionStore {
 
 	/** True while session is in progress */
 	isActive = $derived(this.queue.totalCount > 0 && !this.isSessionFinished);
+
+	/**
+	 * The account of the finished Study session: the Cards studied, the Grades given, and the
+	 * Retention. Derived from the Session queue's record, so it cannot disagree with what
+	 * happened; null until a Study session has actually finished.
+	 */
+	sessionSummary = $derived.by((): StudySessionSummary | null => {
+		// The queue marks the instant its last Card is answered, so a finished session
+		// is exactly a queue with one.
+		const finishedAt = this.queue.finishedAt;
+		if (finishedAt === null) return null;
+
+		const ratingsCount: Record<SM2Rating, number> = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+		for (const record of this.queue.grades) {
+			ratingsCount[record.grade] += 1;
+		}
+
+		// A Card is retained when its first Grade was Good or Easy (>= 3)
+		let retained = 0;
+		for (const grade of this.queue.firstGrades.values()) {
+			if (grade >= 3) retained += 1;
+		}
+
+		const cardsStudied = this.queue.distinctCardsAnswered;
+
+		return {
+			totalReviewed: this.queue.grades.length,
+			retentionRate: cardsStudied > 0 ? Math.round((retained / cardsStudied) * 100) : 0,
+			ratingsCount,
+			streakDays: 7,
+			completedAt: finishedAt.toISOString(),
+			distinctCardsCount: cardsStudied,
+			relearningRepeats: this.queue.relearningReturns,
+			remainingInDeck: this.remainingDeckCards.length,
+			batchNumber: this.batchNumber
+		};
+	});
 
 	/** True if the deck has more cards waiting for the next batch */
 	hasMoreCardsInDeck = $derived(this.remainingDeckCards.length > 0);
@@ -233,7 +267,6 @@ class StudySessionStore {
 		// A new batch is a new Session queue, so it starts with nothing answered.
 		this.queue = new SessionQueue(nextBatch);
 		this.isFlipped = false;
-		this.lastSessionSummary = null;
 		this.clearScratchPad();
 
 		return true;
@@ -252,7 +285,7 @@ class StudySessionStore {
 	 * offline sync queue either way.
 	 */
 	async rateCurrentCard(grade: SM2Rating): Promise<void> {
-		const answered = this.queue.answer(grade);
+		const answered = this.queue.answer(grade, new SvelteDate());
 		if (!answered) return;
 
 		this.haptics.sm2Rating(grade);
@@ -262,52 +295,6 @@ class StudySessionStore {
 
 		this.isFlipped = false;
 		this.clearScratchPad();
-
-		// Check if entire batch is complete
-		if (this.isSessionFinished) {
-			this.computeSessionSummary();
-		}
-	}
-
-	// ── Session Metrics & Summary ──────────────────────────────────────────
-
-	private computeSessionSummary(): void {
-		const totalAttempts = this.queue.grades.length;
-		const ratingsCount: Record<SM2Rating, number> = {
-			0: 0,
-			1: 0,
-			2: 0,
-			3: 0,
-			4: 0,
-			5: 0
-		};
-
-		for (const r of this.queue.grades) {
-			ratingsCount[r.grade] += 1;
-		}
-
-		// A Card is retained when its first Grade was Good or Easy (>= 3)
-		let firstTryPass = 0;
-		for (const [, grade] of this.queue.firstGrades.entries()) {
-			if (grade >= 3) {
-				firstTryPass += 1;
-			}
-		}
-
-		const distinctTotal = this.queue.distinctCardsAnswered || 1;
-		const retentionRate = Math.round((firstTryPass / distinctTotal) * 100);
-
-		this.lastSessionSummary = {
-			totalReviewed: totalAttempts,
-			retentionRate,
-			ratingsCount,
-			streakDays: 7,
-			completedAt: new SvelteDate().toISOString(),
-			distinctCardsCount: this.queue.distinctCardsAnswered,
-			relearningRepeats: this.queue.relearningReturns,
-			remainingInDeck: this.remainingDeckCards.length,
-			batchNumber: this.batchNumber
-		};
 	}
 
 	// ── Helpers & Settings ─────────────────────────────────────────────────
@@ -354,7 +341,6 @@ class StudySessionStore {
 		this.totalDeckCardsCount = 0;
 		this.batchNumber = 1;
 		this.sessionDeckId = null;
-		this.lastSessionSummary = null;
 		this.clearScratchPad();
 	}
 }
