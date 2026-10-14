@@ -27,7 +27,6 @@ jobs:
       packages: read
 
     outputs:
-      tag: ${{ steps.versioning.outputs.tag }}
       version: ${{ steps.versioning.outputs.version }}
 
     steps:
@@ -128,7 +127,7 @@ jobs:
           file: ./Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.prepare.outputs.tag }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.prepare.outputs.version }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -136,7 +135,7 @@ jobs:
       - name: Create and push Git tag
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
-          next="${{ needs.prepare.outputs.tag }}"
+          next="${{ needs.prepare.outputs.version }}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           if ! git rev-parse "v${next}" >/dev/null 2>&1; then
