@@ -62,7 +62,9 @@ jobs:
           package="${GITHUB_REPOSITORY##*/}"
           owner="${GITHUB_REPOSITORY_OWNER}"
 
-          # Aggregate tags from git refs and GitHub container package registry
+          # Aggregate tags from git refs and GitHub container package registry.
+          # The rolling `latest` tag does not match the semantic-version
+          # pattern below, so it never influences the next version.
           versions=$(
             {
               git ls-remote --tags --refs origin 2>/dev/null \
@@ -146,19 +148,30 @@ jobs:
 
   # The APK the release publishes: the static web build — never the Node SSR
   # build — synced into the checked-in Android platform project, assembled with
-  # the version the prepare job computed, then verified and uploaded as a
-  # workflow artifact. It needs no secrets: without the release keystore the
-  # app module falls back to debug signing, so fork pull requests get an
-  # installable APK too.
+  # the version the prepare job computed, signed with the permanent release
+  # keystore, verified, and uploaded as a workflow artifact. On main pushes and
+  # tag pushes it then publishes two GitHub Releases: the permanent versioned
+  # release and the rolling `latest` release whose fixed asset name is replaced
+  # in place. Fork pull requests cannot read the signing secrets; they warn,
+  # fall back to debug signing, and publish nothing.
   android:
     needs: prepare
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
+    env:
+      # The rolling release's public contract: this tag and asset name are the
+      # stable download URL, so they are named once and never varied.
+      LATEST_TAG: latest
+      LATEST_ASSET: vocabkr.apk
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          # The release notes range needs the tags the prepare job's version
+          # arithmetic also reads.
+          fetch-depth: 0
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -176,6 +189,54 @@ jobs:
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
+
+      # The permanent signing identity. Main and tag runs must have all four
+      # secrets — a debug-signed APK must never be published — while a fork
+      # pull request has none and degrades to the Gradle debug fallback. The
+      # keystore and its properties live inside android/, which is git-ignored,
+      # and never inside artifacts/, the only uploaded path.
+      - name: Materialise the release keystore
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          missing=()
+          for name in \
+            ANDROID_KEYSTORE_BASE64 \
+            ANDROID_KEYSTORE_PASSWORD \
+            ANDROID_KEY_ALIAS \
+            ANDROID_KEY_PASSWORD; do
+            if [[ -z "${!name:-}" ]]; then
+              missing+=("${name}")
+            fi
+          done
+
+          if (( ${#missing[@]} > 0 )); then
+            if [[ "${GITHUB_EVENT_NAME}" == 'pull_request' ]]; then
+              echo "::warning::Release signing secrets are unavailable (fork pull request); falling back to debug signing. This APK is for smoke testing only."
+              exit 0
+            fi
+            echo "::error::Release signing secrets are missing (${missing[*]}). Refusing to build a debug-signed APK for a release."
+            exit 1
+          fi
+
+          printf '%s' "${ANDROID_KEYSTORE_BASE64}" | base64 --decode > android/keystore.jks
+
+          # The app module loads keystore.properties from the Android root and
+          # resolves a relative storeFile against the app module directory.
+          # Backslash is the properties escape character, so escape it.
+          {
+            printf 'storeFile=../keystore.jks\n'
+            printf 'storePassword=%s\n' "${ANDROID_KEYSTORE_PASSWORD//\\/\\\\}"
+            printf 'keyAlias=%s\n' "${ANDROID_KEY_ALIAS//\\/\\\\}"
+            printf 'keyPassword=%s\n' "${ANDROID_KEY_PASSWORD//\\/\\\\}"
+          } > android/keystore.properties
+
+          echo 'Release keystore materialised.'
 
       - name: Build the static web bundle
         env:
@@ -207,17 +268,53 @@ jobs:
         env:
           VERSION_CODE: ${{ steps.versioning.outputs.versionCode }}
           VERSION_NAME: ${{ steps.versioning.outputs.versionName }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         run: |
           set -euo pipefail
 
           apk='android/app/build/outputs/apk/release/app-release.apk'
           build_tools="$(ls -d "${ANDROID_HOME}"/build-tools/*/ | sort -V | tail -n 1)"
 
+          # keytool and apksigner print the same digest differently: keytool
+          # colon-separates bytes and may prefix the line; apksigner does not.
+          normalise_fingerprint() {
+            tr -d ':' | tr '[:upper:]' '[:lower:]'
+          }
+
           # A signature that does not verify, or a version that is not the
           # run's, fails the job here — before anything is uploaded. The package
           # line of the badging carries the manifest's own versionCode and
           # versionName; the capitalized platformBuildVersion* fields do not.
           "${build_tools}apksigner" verify --print-certs "${apk}"
+
+          # When the release keystore was materialised, the APK must carry its
+          # certificate, not merely be signed by something. Two builds that
+          # disagree here cannot install over one another.
+          if [[ -f android/keystore.jks ]]; then
+            keystore_fingerprint="$(
+              keytool -list -v -keystore android/keystore.jks \
+                -alias "${ANDROID_KEY_ALIAS}" \
+                -storepass:env ANDROID_KEYSTORE_PASSWORD \
+                | sed -n -E 's/^[[:space:]]*(Certificate fingerprint \(SHA-256\)|SHA256):[[:space:]]*//p' \
+                | head -n 1 \
+                | normalise_fingerprint
+            )"
+            apk_fingerprint="$(
+              "${build_tools}apksigner" verify --print-certs "${apk}" \
+                | sed -n -E 's/^Signer #1 certificate SHA-256 digest:[[:space:]]*//p' \
+                | head -n 1 \
+                | normalise_fingerprint
+            )"
+
+            if [[ -z "${keystore_fingerprint}" || "${apk_fingerprint}" != "${keystore_fingerprint}" ]]; then
+              echo "::error::The APK signer certificate (${apk_fingerprint:-none}) does not match the release keystore (${keystore_fingerprint:-none})."
+              exit 1
+            fi
+            echo "The APK is signed by the release keystore (SHA-256 ${apk_fingerprint})."
+          else
+            echo '::warning::No release keystore was materialised; this APK is debug-signed.'
+          fi
           badging="$("${build_tools}aapt2" dump badging "${apk}")"
           package_line="${badging%%$'\n'*}"
           version_code="$(grep -oE "versionCode='[0-9]+'" <<<"${package_line}" | cut -d"'" -f2)"
@@ -242,7 +339,7 @@ jobs:
 
           echo "Verified ${apk}: versionCode=${version_code}, versionName='${version_name}'"
 
-      - name: Stage the APK for upload
+      - name: Stage the release assets
         env:
           ASSET_NAME: ${{ steps.versioning.outputs.assetName }}
         run: |
@@ -251,9 +348,170 @@ jobs:
           mkdir -p artifacts
           cp android/app/build/outputs/apk/release/app-release.apk "artifacts/${ASSET_NAME}"
 
+          # The rolling release always serves this fixed name, so its download
+          # URL survives every build.
+          cp "artifacts/${ASSET_NAME}" "artifacts/${LATEST_ASSET}"
+
+          (cd artifacts && sha256sum "${ASSET_NAME}" > "${ASSET_NAME}.sha256")
+
       - name: Upload the APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.versioning.outputs.assetName }}
           path: artifacts/${{ steps.versioning.outputs.assetName }}
           if-no-files-found: error
+
+      # Two release shapes per publish. The versioned release is permanent:
+      # v<version> carries the versioned APK and its checksum. The rolling
+      # `latest` release carries one fixed-name asset, replaced in place so its
+      # URL never 404s, and its tag is moved to this run's commit. Neither is
+      # created for a pull request. The version tag may already have been
+      # pushed by the docker job; a lost race must not fail the run.
+      - name: Publish the GitHub Releases
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+          ASSET_NAME: ${{ steps.versioning.outputs.assetName }}
+          PRERELEASE: ${{ steps.versioning.outputs.prerelease }}
+          COMMIT: ${{ github.sha }}
+          SERVER_URL: ${{ github.server_url }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          tag="v${VERSION}"
+          checksum="${ASSET_NAME}.sha256"
+          commit_url="${SERVER_URL}/${REPOSITORY}/commit/${COMMIT}"
+
+          preamble="$(cat <<EOF
+          **vocabkr ${VERSION}** — a sideload build of the offline study app.
+
+          Download the APK below, open it on your Android device, and allow installing unknown apps when Android asks. Every build is signed with the same release key, so a newer build installs over the one already on the device and keeps its data.
+
+          Requires Android 7.0 (API 24) or newer.
+          EOF
+          )"
+
+          rolling_notes="$(cat <<EOF
+          The current build: **vocabkr ${VERSION}** ([${COMMIT:0:7}](${commit_url})).
+
+          ${preamble}
+          EOF
+          )"
+
+          prerelease_flag=false
+          [[ "${PRERELEASE}" == 'true' ]] && prerelease_flag=true
+
+          # The docker job may or may not have pushed the version tag yet. If
+          # it has not, push it here; losing the race is harmless, because the
+          # release below creates the tag at this run's commit if it is still
+          # missing.
+          if ! git ls-remote --exit-code --tags origin "refs/tags/${tag}" >/dev/null 2>&1; then
+            git config user.name 'github-actions[bot]'
+            git config user.email 'github-actions[bot]@users.noreply.github.com'
+            git tag -f "${tag}" "${COMMIT}"
+            git push origin "refs/tags/${tag}" || true
+          fi
+
+          # The newest semantic version tag before this one. `latest` does not
+          # match the pattern and is deliberately never a notes boundary.
+          previous="$(
+            git tag -l 'v*' --sort=-v:refname \
+              | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+(-pre\.[0-9]+)?$' \
+              | grep -Fvx "${tag}" \
+              | head -n 1 || true
+          )"
+          notes_start=()
+          [[ -n "${previous}" ]] && notes_start=(--notes-start-tag "${previous}")
+
+          if gh release view "${tag}" >/dev/null 2>&1; then
+            gh release upload "${tag}" "artifacts/${ASSET_NAME}" "artifacts/${checksum}" --clobber
+            # A create interrupted between draft and publish leaves a draft
+            # behind; a re-run must publish it, not leave the link dead.
+            gh release edit "${tag}" --draft=false --prerelease="${prerelease_flag}"
+          else
+            gh release create "${tag}" \
+              "artifacts/${ASSET_NAME}" "artifacts/${checksum}" \
+              --title "vocabkr ${VERSION}" \
+              --notes "${preamble}" \
+              --generate-notes \
+              --target "${COMMIT}" \
+              --prerelease="${prerelease_flag}" \
+              "${notes_start[@]}"
+          fi
+
+          # Move the rolling tag before touching the release, so its metadata
+          # matches the APK it carries. The release itself is edited in place,
+          # never deleted and recreated.
+          git tag -f "${LATEST_TAG}" "${COMMIT}"
+          git push --force origin "refs/tags/${LATEST_TAG}"
+
+          if gh release view "${LATEST_TAG}" >/dev/null 2>&1; then
+            gh release upload "${LATEST_TAG}" "artifacts/${LATEST_ASSET}" --clobber
+            gh release edit "${LATEST_TAG}" \
+              --title "vocabkr ${VERSION} (${LATEST_TAG})" \
+              --notes "${rolling_notes}" \
+              --draft=false \
+              --prerelease="${prerelease_flag}"
+          else
+            gh release create "${LATEST_TAG}" "artifacts/${LATEST_ASSET}" \
+              --title "vocabkr ${VERSION} (${LATEST_TAG})" \
+              --notes "${rolling_notes}" \
+              --target "${COMMIT}" \
+              --prerelease="${prerelease_flag}"
+          fi
+
+          echo "Published ${tag} and latest for version ${VERSION}."
+
+      - name: Verify the published releases
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+          ASSET_NAME: ${{ steps.versioning.outputs.assetName }}
+          PRERELEASE: ${{ steps.versioning.outputs.prerelease }}
+        run: |
+          set -euo pipefail
+
+          versioned="$(gh release view "v${VERSION}" --json tagName,isPrerelease,isDraft,assets)"
+          rolling="$(gh release view "${LATEST_TAG}" --json tagName,isPrerelease,isDraft,assets)"
+          checksum="${ASSET_NAME}.sha256"
+
+          if [[ "$(jq -r '.tagName' <<<"${versioned}")" != "v${VERSION}" ]]; then
+            echo "::error::The versioned release is not at tag v${VERSION}."
+            exit 1
+          fi
+          if [[ "$(jq -r '.isDraft' <<<"${versioned}")" != 'false' ]]; then
+            echo "::error::Release v${VERSION} is still a draft and not publicly downloadable."
+            exit 1
+          fi
+          if [[ "$(jq -r '.isPrerelease' <<<"${versioned}")" != "${PRERELEASE}" ]]; then
+            echo "::error::Release v${VERSION} has the wrong prerelease flag."
+            exit 1
+          fi
+          if ! jq -e --arg apk "${ASSET_NAME}" --arg sum "${checksum}" \
+            '[.assets[].name] | sort == ([$apk, $sum] | sort)' <<<"${versioned}" >/dev/null; then
+            echo "::error::Release v${VERSION} does not carry exactly ${ASSET_NAME} and ${checksum}."
+            exit 1
+          fi
+
+          if [[ "$(jq -r '.tagName' <<<"${rolling}")" != "${LATEST_TAG}" ]]; then
+            echo "::error::The rolling release is not at tag ${LATEST_TAG}."
+            exit 1
+          fi
+          if [[ "$(jq -r '.isDraft' <<<"${rolling}")" != 'false' ]]; then
+            echo "::error::The ${LATEST_TAG} release is still a draft and the stable link is dead."
+            exit 1
+          fi
+          if [[ "$(jq -r '.isPrerelease' <<<"${rolling}")" != "${PRERELEASE}" ]]; then
+            echo "::error::The ${LATEST_TAG} release has the wrong prerelease flag."
+            exit 1
+          fi
+          if ! jq -e --arg asset "${LATEST_ASSET}" \
+            '[.assets[].name] == [$asset]' <<<"${rolling}" >/dev/null; then
+            echo "::error::The ${LATEST_TAG} release does not carry exactly ${LATEST_ASSET}."
+            exit 1
+          fi
+
+          echo "Verified releases v${VERSION} and ${LATEST_TAG}."
