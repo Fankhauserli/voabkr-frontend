@@ -1,15 +1,25 @@
 import type { Card, SM2Rating, StudySessionSummary, StudyDirection } from '$lib/types';
-import { reviewApi } from '$lib/api/reviews';
+import { nextReviewSchedule, type ReviewSchedule } from '$lib/scheduling/reviewSchedule';
 import { authApi } from '$lib/api/auth';
 import { auth } from './auth.svelte';
 import { reviewSync } from './syncQueue.svelte';
 import { SessionQueue } from './sessionQueue.svelte';
+import { assembleSessionQueue, startOfDay, type DeckContents } from '$lib/study/queueAssembly';
+import { deviceStudySource, type StudyDeviceSource } from '$lib/study/deviceSource';
 import { hapticFeedback } from '$lib/utils/haptics';
-import { SvelteDate } from 'svelte/reactivity';
+import { SvelteDate, SvelteMap, SvelteSet } from 'svelte/reactivity';
+
+/** How many Cards one Batch offers. It is the app's own number, not the Daily goal. */
+export const BATCH_SIZE = 20;
 
 /** Where the Study session sends a Grade: the offline sync queue in the app. */
 export interface ReviewSink {
-	addReview(cardId: number, grade: SM2Rating): Promise<{ synced: boolean }>;
+	addReview(
+		cardId: number,
+		grade: SM2Rating,
+		answeredAt: Date,
+		schedule: ReviewSchedule
+	): Promise<{ synced: boolean }>;
 }
 
 /** The tactile feedback the Study session asks for: the haptics module in the app. Fire-and-forget. */
@@ -22,6 +32,12 @@ export interface HapticFeedback {
 export interface StudySessionCollaborators {
 	reviews: ReviewSink;
 	haptics: HapticFeedback;
+	/** Where the Cards and Review schedules are read; the device store in the app. */
+	device: StudyDeviceSource;
+	/** The Day's Daily goal, read when a Study session starts. */
+	dailyGoal?: () => number;
+	/** The clock the Study session reads. */
+	now?: () => Date;
 }
 
 function getStoredValue(key: string): string | null {
@@ -45,19 +61,50 @@ function setStoredValue(key: string, value: string): void {
 	}
 }
 
+/** A Review schedule before a New Card's first Grade. */
+function newCardSchedule(answeredAt: Date): ReviewSchedule {
+	return { interval: 0, efactor: 2.5, repetitions: 0, nextReviewAt: answeredAt };
+}
+
+/** Every Card's Review schedule, gathered from the held Decks. */
+function schedulesOf(decks: readonly DeckContents[]): SvelteMap<number, ReviewSchedule> {
+	const schedules = new SvelteMap<number, ReviewSchedule>();
+	for (const deck of decks) {
+		for (const [cardId, schedule] of deck.schedules) {
+			schedules.set(cardId, schedule);
+		}
+	}
+	return schedules;
+}
+
 /**
- * The Study session: one sitting of studying Cards. It fetches the Cards for the sitting,
- * splits them into focused, manageable batches (default 20 cards), and hands each batch to
- * a Session queue, which owns the in-session Relearning steps. It reports every Grade to the
- * offline sync queue, asks for haptics, and composes the Session summary from what the
- * Session queue recorded.
+ * The Study session: one sitting of studying Cards. It assembles the sitting's
+ * queue from the Cards and Review schedules held on the device — Due Cards most
+ * overdue first, then New Cards in Deck order up to the Day's Daily goal — and
+ * splits the queue into Batches of the app's own size. It hands each Batch to a
+ * Session queue, which owns the in-session Relearning steps. It reports every
+ * Grade, with the Review schedule it produced, to the offline sync queue, asks
+ * for haptics, and composes the Session summary from what the Session queue
+ * recorded.
  */
 class StudySessionStore {
 	private readonly reviews: ReviewSink;
 	private readonly haptics: HapticFeedback;
+	private readonly device: StudyDeviceSource;
+	private readonly dailyGoal: () => number;
+	private readonly now: () => Date;
 
 	/** The Session queue of the batch being studied. Replaced when a new batch starts. */
 	private queue = $state(new SessionQueue());
+
+	/** The Review schedule each Card in the sitting carries, by Card id. */
+	#schedules = new SvelteMap<number, ReviewSchedule>();
+
+	/** New Cards whose introduction the current Day has not recorded yet. */
+	#unrecordedNewCards = new SvelteSet<number>();
+
+	/** The Day the sitting belongs to; its allowance was read when the sitting began. */
+	#dayStart: Date | null = null;
 
 	/** Whether card answer is revealed */
 	isFlipped = $state<boolean>(false);
@@ -77,14 +124,8 @@ class StudySessionStore {
 	/** Revision counter to clear scratch pad canvas */
 	scratchPadRevision = $state<number>(0);
 
-	/** Batch size for focused study (default 20) */
-	batchSize = $state<number>(20);
-
 	/** Remaining cards in the current deck for subsequent batches */
 	remainingDeckCards = $state<Card[]>([]);
-
-	/** Total cards count in the deck */
-	totalDeckCardsCount = $state<number>(0);
 
 	/** Current batch number in this deck session */
 	batchNumber = $state<number>(1);
@@ -95,6 +136,9 @@ class StudySessionStore {
 	constructor(collaborators: StudySessionCollaborators) {
 		this.reviews = collaborators.reviews;
 		this.haptics = collaborators.haptics;
+		this.device = collaborators.device;
+		this.dailyGoal = collaborators.dailyGoal ?? (() => auth.cardsPerDay);
+		this.now = collaborators.now ?? (() => new SvelteDate());
 
 		const saved = getStoredValue('voabkr_study_direction') as StudyDirection | null;
 		if (saved === 'koreanToEnglish' || saved === 'englishToKorean') {
@@ -126,6 +170,11 @@ class StudySessionStore {
 	/** Total cards in active queue (includes relearning repetitions) */
 	get totalCards(): number {
 		return this.queue.totalCount;
+	}
+
+	/** The size of a Batch: the app's own number, independent of the Daily goal. */
+	get batchSize(): number {
+		return BATCH_SIZE;
 	}
 
 	/** True when all cards (including all relearning repetitions) have graduated */
@@ -177,36 +226,52 @@ class StudySessionStore {
 	/** Count of cards remaining in the deck */
 	remainingInDeckCount = $derived(this.remainingDeckCards.length);
 
-	// ── Session Initialization & Smart Batching ───────────────────────────
+	// ── Session Initialization & Batching ─────────────────────────────────
 
 	/**
-	 * Start a review session for cards due today across all decks (or specific deck).
+	 * Start a Study session for the Cards held on the device due today, across
+	 * all held Decks or one Deck. The Session queue is assembled locally: no
+	 * network call is made.
 	 */
-	async startDueSession(deckId?: number, customBatchSize?: number): Promise<boolean> {
+	async startDueSession(deckId?: number): Promise<boolean> {
+		return this.#start(deckId);
+	}
+
+	/** Start a Study session for one Deck held on the device, with no network call. */
+	async startDeckSession(deckId: number): Promise<void> {
+		await this.#start(deckId);
+	}
+
+	/** Read the device's Cards, assemble the queue, and offer its first Batch. */
+	async #start(deckId?: number): Promise<boolean> {
 		this.reset();
 		this.isLoading = true;
 		this.sessionDeckId = deckId ?? null;
 
 		try {
-			const dueCards = await reviewApi.getDueCards(deckId);
-			const filtered = deckId ? dueCards.filter((c) => c.deckId === deckId) : dueCards;
+			const now = this.now();
+			const dayStart = startOfDay(now);
+			const [decks, newCardsIntroducedToday] = await Promise.all([
+				this.device.readDecks(deckId),
+				this.device.readNewCardsIntroduced(dayStart)
+			]);
 
-			// Smart Order: Due cards prioritized by due urgency
-			const sorted = [...filtered];
+			const plan = assembleSessionQueue(decks, {
+				now,
+				dailyGoal: this.dailyGoal(),
+				newCardsIntroducedToday
+			});
 
-			const targetSize = customBatchSize || auth.cardsPerDay || 20;
-			this.batchSize = targetSize;
-			this.totalDeckCardsCount = sorted.length;
-
-			// Slice first manageable batch
-			const firstBatch = sorted.slice(0, targetSize);
-			this.remainingDeckCards = sorted.slice(targetSize);
+			this.#dayStart = dayStart;
+			this.#schedules = schedulesOf(decks);
+			this.#unrecordedNewCards = new SvelteSet(plan.newCards.map((card) => card.id));
 			this.batchNumber = 1;
-			this.queue = new SessionQueue(firstBatch);
+			this.queue = new SessionQueue(plan.cards.slice(0, BATCH_SIZE));
+			this.remainingDeckCards = plan.cards.slice(BATCH_SIZE);
 
-			return firstBatch.length > 0;
+			return plan.cards.length > 0;
 		} catch (err: unknown) {
-			this.error = err instanceof Error ? err.message : 'Failed to fetch due review cards';
+			this.error = err instanceof Error ? err.message : 'Failed to load the Cards on this device';
 			return false;
 		} finally {
 			this.isLoading = false;
@@ -214,54 +279,15 @@ class StudySessionStore {
 	}
 
 	/**
-	 * Start a study session for a specific deck.
-	 * Intelligently batches cards (e.g. 20 cards at a time) and orders them:
-	 * 1. Due review cards first
-	 * 2. Unstudied new cards second
-	 */
-	async startDeckSession(
-		deckCards: Card[],
-		deckId?: number,
-		customBatchSize?: number
-	): Promise<void> {
-		this.reset();
-		this.sessionDeckId = deckId ?? null;
-
-		const targetSize = customBatchSize || auth.cardsPerDay || 20;
-		this.batchSize = targetSize;
-		this.totalDeckCardsCount = deckCards.length;
-
-		// Smart Order:
-		// 1. Cards previously reviewed (isReviewed === true) come first
-		// 2. Unstudied/new cards come next
-		const dueOrReviewed: Card[] = [];
-		const newCards: Card[] = [];
-
-		for (const card of deckCards) {
-			if (card.isReviewed) {
-				dueOrReviewed.push(card);
-			} else {
-				newCards.push(card);
-			}
-		}
-
-		const smartOrdered = [...dueOrReviewed, ...newCards];
-
-		// Take first batch (e.g. 20 cards)
-		const firstBatch = smartOrdered.slice(0, targetSize);
-		this.remainingDeckCards = smartOrdered.slice(targetSize);
-		this.batchNumber = 1;
-		this.queue = new SessionQueue(firstBatch);
-	}
-
-	/**
-	 * Continue studying the next batch of cards from the same deck.
+	 * Continue studying the next Batch of the sitting's queue. It is a slice of
+	 * the queue assembled when the sitting began, so it never introduces more
+	 * New Cards than that Day's allowance.
 	 */
 	startNextBatch(): boolean {
 		if (this.remainingDeckCards.length === 0) return false;
 
-		const nextBatch = this.remainingDeckCards.slice(0, this.batchSize);
-		this.remainingDeckCards = this.remainingDeckCards.slice(this.batchSize);
+		const nextBatch = this.remainingDeckCards.slice(0, BATCH_SIZE);
+		this.remainingDeckCards = this.remainingDeckCards.slice(BATCH_SIZE);
 		this.batchNumber += 1;
 
 		// A new batch is a new Session queue, so it starts with nothing answered.
@@ -281,20 +307,59 @@ class StudySessionStore {
 
 	/**
 	 * Answer the active Card with an Anki 4-button Grade (1=Again, 2=Hard, 3=Good, 4=Easy).
-	 * The Session queue decides whether the Card returns; the Grade is reported to the
-	 * offline sync queue either way.
+	 * The Session queue decides whether the Card returns; the Grade, with the Review
+	 * schedule it produced, is reported to the offline sync queue either way.
 	 */
 	async rateCurrentCard(grade: SM2Rating): Promise<void> {
-		const answered = this.queue.answer(grade, new SvelteDate());
+		// The Session queue offers Again–Easy (1–4); 0 and 5 exist only for
+		// backward compatibility and have no Review schedule rule.
+		if (grade !== 1 && grade !== 2 && grade !== 3 && grade !== 4) return;
+
+		const answeredAt = this.now();
+		const answered = this.queue.answer(grade, answeredAt);
 		if (!answered) return;
 
 		this.haptics.sm2Rating(grade);
 
+		const schedule = nextReviewSchedule(
+			this.#schedules.get(answered.id) ?? newCardSchedule(answeredAt),
+			grade,
+			answeredAt
+		);
+		this.#schedules.set(answered.id, schedule);
+
+		// The device is what the next sitting reads, so persist the Card's new Due
+		// moment and the Day's introduction before the Grade travels anywhere else.
+		await this.#persistGrade(answered.id, schedule);
+
 		// Optimistic submission via sync queue to backend (unawaited: the Grade must not block the UI)
-		void this.reviews.addReview(answered.id, grade);
+		void this.reviews.addReview(answered.id, grade, answeredAt, schedule);
 
 		this.isFlipped = false;
 		this.clearScratchPad();
+	}
+
+	/**
+	 * Writes a Grade's Review schedule to the device and, for a New Card, records
+	 * its introduction in the Day. Both are read when the next sitting assembles
+	 * its queue, so they must be durable before that sitting can begin.
+	 */
+	async #persistGrade(cardId: number, schedule: ReviewSchedule): Promise<void> {
+		try {
+			await this.device.writeSchedule(cardId, schedule);
+		} catch (error) {
+			console.error('[StudySession] Failed to write the Review schedule:', error);
+		}
+
+		// The first Grade of a New Card introduces it into the Day. A return from
+		// its Relearning step is the same Card, so it consumes no more allowance.
+		if (this.#dayStart === null || !this.#unrecordedNewCards.has(cardId)) return;
+		try {
+			await this.device.recordNewCardIntroduced(this.#dayStart, cardId);
+			this.#unrecordedNewCards.delete(cardId);
+		} catch (error) {
+			console.error('[StudySession] Failed to record a New Card introduction:', error);
+		}
 	}
 
 	// ── Helpers & Settings ─────────────────────────────────────────────────
@@ -338,15 +403,18 @@ class StudySessionStore {
 		this.isLoading = false;
 		this.error = null;
 		this.remainingDeckCards = [];
-		this.totalDeckCardsCount = 0;
 		this.batchNumber = 1;
 		this.sessionDeckId = null;
+		this.#dayStart = null;
+		this.#schedules.clear();
+		this.#unrecordedNewCards.clear();
 		this.clearScratchPad();
 	}
 }
 
 export const studySession = new StudySessionStore({
 	reviews: reviewSync,
-	haptics: hapticFeedback
+	haptics: hapticFeedback,
+	device: deviceStudySource
 });
 export { StudySessionStore };

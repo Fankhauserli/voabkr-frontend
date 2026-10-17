@@ -150,6 +150,51 @@ describe('DeviceStore', () => {
 		]);
 	});
 
+	it('counts the New Cards introduced in a Day once each, and keeps Days apart', async () => {
+		const day = new Date(2026, 9, 17, 4, 0);
+		const nextDay = new Date(2026, 9, 18, 4, 0);
+
+		await store.recordNewCardIntroduced(day, 1);
+		await store.recordNewCardIntroduced(day, 2);
+		await store.recordNewCardIntroduced(day, 1); // a Relearning return consumes nothing more
+
+		expect(await store.readNewCardsIntroduced(day)).toBe(2);
+		expect(await store.readNewCardsIntroduced(nextDay)).toBe(0);
+
+		// The Day's count survives a reload.
+		store.close();
+		store = await DeviceStore.open(name);
+		expect(await store.readNewCardsIntroduced(day)).toBe(2);
+	});
+
+	it('upgrades a database created before the New Card Day record existed', async () => {
+		store.close();
+		await deleteDatabase(name);
+
+		// Create the version 1 schema by hand, as an older app would have.
+		await new Promise<void>((resolve, reject) => {
+			const request = indexedDB.open(name, 1);
+			request.onupgradeneeded = () => {
+				const db = request.result;
+				db.createObjectStore('cards', { keyPath: 'id' }).createIndex('deckId', 'deckId');
+				db.createObjectStore('schedules', { keyPath: 'cardId' });
+				db.createObjectStore('heldDecks', { keyPath: 'deckId' });
+				db.createObjectStore('queuedGrades', { keyPath: 'id', autoIncrement: true });
+			};
+			request.onsuccess = () => {
+				request.result.close();
+				resolve();
+			};
+			request.onerror = () => reject(request.error);
+		});
+
+		store = await DeviceStore.open(name);
+		const day = new Date(2026, 9, 17, 4, 0);
+		await store.recordNewCardIntroduced(day, 7);
+
+		expect(await store.readNewCardsIntroduced(day)).toBe(1);
+	});
+
 	it('keeps the owning learner with each Queued Grade across a reload', async () => {
 		await store.appendQueuedGrade({
 			learnerId: 7,

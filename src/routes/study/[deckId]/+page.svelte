@@ -12,7 +12,6 @@
 	import Sm2RatingBar from '$lib/components/study/Sm2RatingBar.svelte';
 	import SessionProgressBar from '$lib/components/study/SessionProgressBar.svelte';
 	import TactileButton from '$lib/components/forms/TactileButton.svelte';
-	import { reviewApi } from '$lib/api/reviews';
 
 	let deck = $state<Deck | null>(null);
 	let deckId = $derived(parseInt(page.params.deckId ?? '0', 10));
@@ -29,13 +28,13 @@
 		(async () => {
 			try {
 				studySession.isLoading = true;
-				const [deckData, cardsData] = await Promise.all([
-					deckApi.getDeckById(deckId),
-					reviewApi.getDueCards(deckId)
-				]);
-				deck = deckData;
-				const deckCards = cardsData.filter((card) => card.deckId === deckId);
-				await studySession.startDeckSession(deckCards, deckId);
+				// The title is decoration: fetch it alongside the device queue and
+				// never let the network hold up the Study session started below.
+				void deckApi
+					.getDeckById(deckId)
+					.then((found) => (deck = found))
+					.catch(() => {});
+				await studySession.startDeckSession(deckId);
 			} catch (err: unknown) {
 				studySession.error = err instanceof Error ? err.message : 'Failed to load deck cards';
 			} finally {

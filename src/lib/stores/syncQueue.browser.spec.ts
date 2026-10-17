@@ -1,6 +1,27 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ReviewSyncQueue } from './syncQueue.svelte';
 import { reviewApi } from '$lib/api/reviews';
+import { DeviceStore } from '$lib/device/deviceStore';
+import type { ReviewSchedule } from '$lib/scheduling/reviewSchedule';
+import type { Card } from '$lib/types';
+
+/** A Review schedule next Due the morning after it was written. */
+const schedule = (): ReviewSchedule => ({
+	interval: 1,
+	efactor: 2.5,
+	repetitions: 1,
+	nextReviewAt: new Date(2026, 9, 18, 9, 0)
+});
+
+/** A Card belonging to Deck 10. */
+const card = (id: number): Card => ({
+	id,
+	deckId: 10,
+	koreanWord: `단어 ${id}`,
+	englishWord: `Word ${id}`,
+	context: '',
+	example: ''
+});
 
 /** Deletes a test database once the queue has closed it. */
 const deleteDatabase = (name: string): Promise<void> =>
@@ -46,6 +67,35 @@ describe('ReviewSyncQueue', () => {
 		expect(result).toEqual({ synced: true });
 		expect(submit).toHaveBeenCalledWith(101, 4);
 		expect(queue.pendingCount).toBe(0);
+	});
+
+	it('writes a Grade’s Review schedule to the device store even when the backend accepts it', async () => {
+		vi.spyOn(reviewApi, 'submitReviewScore').mockResolvedValueOnce({ message: 'Success' });
+		const reader = await DeviceStore.open(name);
+		await reader.saveCards([card(101)]);
+		const produced = schedule();
+
+		const result = await queue.addReview(101, 3, new Date(2026, 9, 17, 9, 0), produced);
+
+		expect(result).toEqual({ synced: true });
+		// The next Study session reads this schedule to know the Card is no longer Due.
+		expect((await reader.readDeck(10)).schedules.get(101)).toEqual(produced);
+		reader.close();
+	});
+
+	it('queues the Review schedule with a Grade given offline, across a reload', async () => {
+		setOnline(false);
+		const produced = schedule();
+
+		await queue.addReview(202, 1, new Date(2026, 9, 17, 9, 0), produced);
+
+		expect(queue.items[0].schedule).toEqual(produced);
+
+		await queue.close();
+		queue = new ReviewSyncQueue({ databaseName: name });
+		await queue.ready;
+
+		expect(queue.items[0].schedule).toEqual(produced);
 	});
 
 	it('keeps a Grade in the device store when offline, and hydrates it after a reload', async () => {
