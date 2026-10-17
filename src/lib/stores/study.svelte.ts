@@ -242,11 +242,21 @@ class StudySessionStore {
 	 * all held Decks or one Deck. It reads the Cards and Review schedules the
 	 * device holds, assembles the Session queue, and offers its first Batch. No
 	 * network call is made.
+	 *
+	 * A sitting already in hand for the same scope is resumed: its Batch, its
+	 * answers, and its Review schedules survive, and nothing is read from the
+	 * device again. This is what lets the Session summary's "Study Next Batch"
+	 * keep the Batch it built when the stage route starts the same scope. Any
+	 * other scope — including a finished sitting, which is no longer active —
+	 * resets and starts fresh.
 	 */
 	async start({ deckId }: { deckId?: number } = {}): Promise<boolean> {
+		const scope = deckId ?? null;
+		if (this.isActive && this.sessionDeckId === scope) return true;
+
 		this.reset();
 		this.isLoading = true;
-		this.sessionDeckId = deckId ?? null;
+		this.sessionDeckId = scope;
 
 		try {
 			const now = this.now();
