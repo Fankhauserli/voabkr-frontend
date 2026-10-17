@@ -302,7 +302,7 @@ jobs:
             )"
             apk_fingerprint="$(
               "${build_tools}apksigner" verify --print-certs "${apk}" \
-                | sed -n -E 's/^Signer #1 certificate SHA-256 digest:[[:space:]]*//p' \
+                | sed -n -E 's/^.*certificate SHA-256 digest:[[:space:]]*//p' \
                 | head -n 1 \
                 | normalise_fingerprint
             )"
