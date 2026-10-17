@@ -172,10 +172,6 @@ export class PreferencesStore {
 	 * leaves the device's direction in place.
 	 */
 	async setStudyDirection(direction: StudyDirection): Promise<void> {
-		if (!isStudyDirection(direction)) {
-			throw new Error('The Study direction must be koreanToEnglish or englishToKorean');
-		}
-
 		this.#studyDirection = direction;
 		this.#storeStudyDirection({ value: direction, saved: false });
 
@@ -199,10 +195,6 @@ export class PreferencesStore {
 	 * leaves the device's value in place.
 	 */
 	async setScratchPadEnabled(enabled: boolean): Promise<void> {
-		if (typeof enabled !== 'boolean') {
-			throw new Error('The scratch pad setting must be true or false');
-		}
-
 		this.#scratchPadEnabled = enabled;
 		this.#storeScratchPad({ value: enabled, saved: false });
 
@@ -213,9 +205,14 @@ export class PreferencesStore {
 		}
 	}
 
-	/** Show the scratch pad when it is hidden, or hide it when it is shown. */
-	async toggleScratchPad(): Promise<void> {
-		await this.setScratchPadEnabled(!this.#scratchPadEnabled);
+	/**
+	 * Show the scratch pad when it is hidden, or hide it when it is shown.
+	 * Returns the value now in use, so a caller can say what it became.
+	 */
+	async toggleScratchPad(): Promise<boolean> {
+		const enabled = !this.#scratchPadEnabled;
+		await this.setScratchPadEnabled(enabled);
+		return enabled;
 	}
 
 	#applyDailyGoal(accountGoal: unknown): void {

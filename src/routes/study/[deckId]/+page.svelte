@@ -9,7 +9,10 @@
 	import { preferences } from '$lib/stores/preferences.svelte';
 	import { studySession } from '$lib/stores/study.svelte';
 	import { modal } from '$lib/stores/modal.svelte';
-	import { toast } from '$lib/stores/toast.svelte';
+	import {
+		toggleScratchPadAndReport,
+		toggleStudyDirectionAndReport
+	} from '$lib/utils/preferenceActions';
 	import { registerStudySessionGuard } from '$lib/utils/backButton';
 	import type { Deck } from '$lib/types';
 	import FlashCard from '$lib/components/study/FlashCard.svelte';
@@ -91,34 +94,6 @@
 			goto('/study/summary');
 		}
 	}
-
-	async function handleDirectionToggle() {
-		try {
-			// Preferences switches the prompt at once and saves the new direction. A
-			// failed save keeps that direction on this device, so report the sync.
-			await preferences.toggleStudyDirection();
-		} catch (err: unknown) {
-			toast.error(
-				err instanceof Error
-					? `Could not save your Study direction to your account: ${err.message}`
-					: 'Could not save your Study direction to your account'
-			);
-		}
-	}
-
-	async function handleScratchPadToggle() {
-		try {
-			// Preferences shows or hides the pad at once and saves the new value. A
-			// failed save keeps that value on this device, so report the sync.
-			await preferences.toggleScratchPad();
-		} catch (err: unknown) {
-			toast.error(
-				err instanceof Error
-					? `Could not save your scratch pad setting to your account: ${err.message}`
-					: 'Could not save your scratch pad setting to your account'
-			);
-		}
-	}
 </script>
 
 <svelte:head>
@@ -155,7 +130,7 @@
 
 			<button
 				type="button"
-				onclick={handleDirectionToggle}
+				onclick={toggleStudyDirectionAndReport}
 				class="flex max-w-[220px] items-center gap-1.5 rounded-xl border border-border-subtle bg-surface px-3 py-1.5 text-xs font-bold text-ink-primary transition hover:border-primary active:scale-95"
 				title="Switch learning direction"
 				aria-label="Toggle learning direction"
@@ -201,7 +176,7 @@
 
 			<button
 				type="button"
-				onclick={handleScratchPadToggle}
+				onclick={toggleScratchPadAndReport}
 				class="flex h-11 w-11 items-center justify-center rounded-xl border transition active:scale-95 {preferences.scratchPadEnabled
 					? 'border-primary bg-primary/10 text-primary shadow-xs'
 					: 'border-border-subtle bg-surface text-ink-muted hover:text-ink-primary'}"

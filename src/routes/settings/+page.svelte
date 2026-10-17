@@ -6,6 +6,7 @@
 	import { clientCache } from '$lib/api/cache';
 	import { preferences } from '$lib/stores/preferences.svelte';
 	import { toast } from '$lib/stores/toast.svelte';
+	import { reportPreferenceSaveFailure } from '$lib/utils/preferenceActions';
 	import { setStatusBarTheme } from '$lib/utils/statusBar';
 	import { selectionClick } from '$lib/utils/haptics';
 	import type { StudyDirection } from '$lib/types';
@@ -36,28 +37,19 @@
 			await preferences.setStudyDirection(direction);
 			toast.success('Study direction preference saved');
 		} catch (err: unknown) {
-			toast.error(
-				err instanceof Error
-					? `Could not save your Study direction to your account: ${err.message}`
-					: 'Could not save your Study direction to your account'
-			);
+			reportPreferenceSaveFailure('Study direction', err);
 		}
 	}
 
 	async function handleScratchPadToggle() {
 		selectionClick();
-		const next = !preferences.scratchPadEnabled;
 		try {
 			// Preferences uses and keeps the new value at once, then saves it. A
 			// failed save keeps that value on this device, so report the sync.
-			await preferences.setScratchPadEnabled(next);
-			toast.success(next ? 'Scratch pad enabled' : 'Scratch pad disabled');
+			const enabled = await preferences.toggleScratchPad();
+			toast.success(enabled ? 'Scratch pad enabled' : 'Scratch pad disabled');
 		} catch (err: unknown) {
-			toast.error(
-				err instanceof Error
-					? `Could not save your scratch pad setting to your account: ${err.message}`
-					: 'Could not save your scratch pad setting to your account'
-			);
+			reportPreferenceSaveFailure('scratch pad setting', err);
 		}
 	}
 
@@ -83,11 +75,7 @@
 			await preferences.setDailyGoal(goal);
 			toast.success(`Daily goal updated to ${goal} cards/day`);
 		} catch (err: unknown) {
-			toast.error(
-				err instanceof Error
-					? `Could not save your Daily goal to your account: ${err.message}`
-					: 'Could not save your Daily goal to your account'
-			);
+			reportPreferenceSaveFailure('Daily goal', err);
 		}
 	}
 

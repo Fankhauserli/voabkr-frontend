@@ -388,7 +388,7 @@ describe('PreferencesStore — the scratch pad', () => {
 		const { endpoint, saved } = fakeEndpoint();
 		const store = new PreferencesStore({ storage: memoryStorage(), endpoint });
 
-		await store.toggleScratchPad();
+		await expect(store.toggleScratchPad()).resolves.toBe(true);
 
 		expect(store.scratchPadEnabled).toBe(true);
 		expect(saved).toEqual([{ scratchPadEnabled: true }]);
