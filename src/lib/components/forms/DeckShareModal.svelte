@@ -27,7 +27,7 @@
 	$effect(() => {
 		if (modal.isDeckShareOpen && modal.deckShareData?.deck) {
 			const deck = modal.deckShareData.deck;
-			activeShareToken = deck.shareToken ?? deck.share_token ?? null;
+			activeShareToken = deck.shareToken ?? null;
 			inviteEmail = '';
 			permission = 'view';
 			inviteSuccess = false;
@@ -51,7 +51,7 @@
 			error = null;
 			try {
 				const res = await deckApi.shareDeck(currentDeck.id);
-				activeShareToken = res.shareToken ?? res.share_token ?? null;
+				activeShareToken = res.shareToken ?? null;
 				if (currentDeck) {
 					currentDeck.shareToken = activeShareToken ?? undefined;
 				}
