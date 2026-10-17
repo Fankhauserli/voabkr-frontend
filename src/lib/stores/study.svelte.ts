@@ -1,10 +1,9 @@
-import type { Card, SM2Rating, StudySessionSummary, StudyDirection } from '$lib/types';
+import type { Card, SM2Rating, StudySessionSummary } from '$lib/types';
 import {
 	newCardSchedule,
 	nextReviewSchedule,
 	type ReviewSchedule
 } from '$lib/scheduling/reviewSchedule';
-import { authApi } from '$lib/api/auth';
 import { preferences } from './preferences.svelte';
 import { reviewSync, type AddReviewResult } from './syncQueue.svelte';
 import { SessionQueue } from './sessionQueue.svelte';
@@ -50,27 +49,6 @@ export interface StudySessionCollaborators {
 	now?: () => Date;
 	/** Sync, asked for once a Study session ends. */
 	sync?: SyncTrigger;
-}
-
-function getStoredValue(key: string): string | null {
-	try {
-		if (typeof window !== 'undefined' && typeof window.localStorage?.getItem === 'function') {
-			return window.localStorage.getItem(key);
-		}
-	} catch {
-		// Ignore storage errors in non-browser environments
-	}
-	return null;
-}
-
-function setStoredValue(key: string, value: string): void {
-	try {
-		if (typeof window !== 'undefined' && typeof window.localStorage?.setItem === 'function') {
-			window.localStorage.setItem(key, value);
-		}
-	} catch {
-		// Ignore storage errors in non-browser environments
-	}
 }
 
 /** Every Card's Review schedule, gathered from the held Decks. */
@@ -123,12 +101,6 @@ class StudySessionStore {
 	/** Error message if loading failed */
 	error = $state<string | null>(null);
 
-	/** Study direction preference */
-	studyDirection = $state<StudyDirection>('koreanToEnglish');
-
-	/** Apple Pencil scratch pad toggle */
-	scratchPadEnabled = $state<boolean>(false);
-
 	/** Revision counter to clear scratch pad canvas */
 	scratchPadRevision = $state<number>(0);
 
@@ -148,15 +120,6 @@ class StudySessionStore {
 		this.dailyGoal = collaborators.dailyGoal ?? (() => preferences.dailyGoal);
 		this.now = collaborators.now ?? (() => new SvelteDate());
 		this.sync = collaborators.sync;
-
-		const saved = getStoredValue('voabkr_study_direction') as StudyDirection | null;
-		if (saved === 'koreanToEnglish' || saved === 'englishToKorean') {
-			this.studyDirection = saved;
-		}
-		const savedPad = getStoredValue('voabkr_scratch_pad_enabled');
-		if (savedPad !== null) {
-			this.scratchPadEnabled = savedPad === 'true';
-		}
 	}
 
 	// ── Runes-based Derived State ──────────────────────────────────────────
@@ -382,36 +345,7 @@ class StudySessionStore {
 		}
 	}
 
-	// ── Helpers & Settings ─────────────────────────────────────────────────
-
-	toggleStudyDirection(syncBackend = true): void {
-		this.studyDirection =
-			this.studyDirection === 'koreanToEnglish' ? 'englishToKorean' : 'koreanToEnglish';
-		setStoredValue('voabkr_study_direction', this.studyDirection);
-		if (syncBackend) {
-			authApi.updateSettings({ studyDirection: this.studyDirection }).catch(() => {});
-		}
-	}
-
-	setStudyDirection(direction: StudyDirection, syncBackend = false): void {
-		this.studyDirection = direction;
-		setStoredValue('voabkr_study_direction', direction);
-		if (syncBackend) {
-			authApi.updateSettings({ studyDirection: direction }).catch(() => {});
-		}
-	}
-
-	toggleScratchPad(syncBackend = true): void {
-		this.setScratchPadEnabled(!this.scratchPadEnabled, syncBackend);
-	}
-
-	setScratchPadEnabled(enabled: boolean, syncBackend = false): void {
-		this.scratchPadEnabled = enabled;
-		setStoredValue('voabkr_scratch_pad_enabled', String(enabled));
-		if (syncBackend) {
-			authApi.updateSettings({ scratchPadEnabled: enabled }).catch(() => {});
-		}
-	}
+	// ── Helpers ────────────────────────────────────────────────────────────
 
 	clearScratchPad(): void {
 		this.scratchPadRevision += 1;

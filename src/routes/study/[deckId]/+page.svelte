@@ -6,8 +6,13 @@
 	import { cardApi } from '$lib/api/cards';
 	import { downloadedDecks } from '$lib/device/downloadedDecks.svelte';
 	import { loadStudyDeck } from '$lib/device/loadStudyDeck';
+	import { preferences } from '$lib/stores/preferences.svelte';
 	import { studySession } from '$lib/stores/study.svelte';
 	import { modal } from '$lib/stores/modal.svelte';
+	import {
+		toggleScratchPadAndReport,
+		toggleStudyDirectionAndReport
+	} from '$lib/utils/preferenceActions';
 	import { registerStudySessionGuard } from '$lib/utils/backButton';
 	import type { Deck } from '$lib/types';
 	import FlashCard from '$lib/components/study/FlashCard.svelte';
@@ -125,12 +130,12 @@
 
 			<button
 				type="button"
-				onclick={() => studySession.toggleStudyDirection()}
+				onclick={toggleStudyDirectionAndReport}
 				class="flex max-w-[220px] items-center gap-1.5 rounded-xl border border-border-subtle bg-surface px-3 py-1.5 text-xs font-bold text-ink-primary transition hover:border-primary active:scale-95"
 				title="Switch learning direction"
 				aria-label="Toggle learning direction"
 			>
-				{#if studySession.studyDirection === 'koreanToEnglish'}
+				{#if preferences.studyDirection === 'koreanToEnglish'}
 					<span class="inline-flex items-center gap-1.5 font-medium">
 						<span class="font-bold text-ink-primary">한국어</span>
 						<svg
@@ -171,11 +176,11 @@
 
 			<button
 				type="button"
-				onclick={() => studySession.toggleScratchPad()}
-				class="flex h-11 w-11 items-center justify-center rounded-xl border transition active:scale-95 {studySession.scratchPadEnabled
+				onclick={toggleScratchPadAndReport}
+				class="flex h-11 w-11 items-center justify-center rounded-xl border transition active:scale-95 {preferences.scratchPadEnabled
 					? 'border-primary bg-primary/10 text-primary shadow-xs'
 					: 'border-border-subtle bg-surface text-ink-muted hover:text-ink-primary'}"
-				title={studySession.scratchPadEnabled
+				title={preferences.scratchPadEnabled
 					? 'Hide Scratch Pad'
 					: 'Show Scratch Pad (Apple Pencil)'}
 				aria-label="Toggle Scratch Pad"
@@ -301,12 +306,12 @@
 				context={studySession.currentCard.context}
 				example={studySession.currentCard.example}
 				isFlipped={studySession.isFlipped}
-				direction={studySession.studyDirection}
+				direction={preferences.studyDirection}
 				isRelearning={studySession.isCurrentCardRelearning}
 				onFlip={() => studySession.flipCard()}
 			/>
 
-			{#if studySession.scratchPadEnabled}
+			{#if preferences.scratchPadEnabled}
 				<div class="mt-4 w-full max-w-sm">
 					<ScratchPad
 						cardId={studySession.currentCard.id}

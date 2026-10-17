@@ -4,11 +4,12 @@
 	import { authApi } from '$lib/api/auth';
 	import { reviewSync } from '$lib/stores/syncQueue.svelte';
 	import { clientCache } from '$lib/api/cache';
-	import { studySession } from '$lib/stores/study.svelte';
 	import { preferences } from '$lib/stores/preferences.svelte';
 	import { toast } from '$lib/stores/toast.svelte';
+	import { reportPreferenceSaveFailure } from '$lib/utils/preferenceActions';
 	import { setStatusBarTheme } from '$lib/utils/statusBar';
 	import { selectionClick } from '$lib/utils/haptics';
+	import type { StudyDirection } from '$lib/types';
 	import BottomNavBar from '$lib/components/navigation/BottomNavBar.svelte';
 	import TactileButton from '$lib/components/forms/TactileButton.svelte';
 	import TactileInput from '$lib/components/forms/TactileInput.svelte';
@@ -26,38 +27,29 @@
 		if (auth.user) {
 			name = auth.user.name;
 		}
-		if (auth.settings) {
-			if (auth.settings.studyDirection) {
-				studySession.setStudyDirection(auth.settings.studyDirection, false);
-			}
-			if (typeof auth.settings.scratchPadEnabled === 'boolean') {
-				studySession.setScratchPadEnabled(auth.settings.scratchPadEnabled, false);
-			}
-		}
 	});
 
-	async function handleDirectionChange(direction: 'koreanToEnglish' | 'englishToKorean') {
+	async function handleDirectionChange(direction: StudyDirection) {
 		selectionClick();
-		studySession.setStudyDirection(direction, false);
 		try {
-			await authApi.updateSettings({ studyDirection: direction });
-			auth.updateSettings({ studyDirection: direction });
+			// Preferences uses and keeps the new direction at once, then saves it. A
+			// failed save keeps that direction on this device, so report the sync.
+			await preferences.setStudyDirection(direction);
 			toast.success('Study direction preference saved');
 		} catch (err: unknown) {
-			toast.error(err instanceof Error ? err.message : 'Failed to save settings');
+			reportPreferenceSaveFailure('Study direction', err);
 		}
 	}
 
 	async function handleScratchPadToggle() {
 		selectionClick();
-		const next = !studySession.scratchPadEnabled;
-		studySession.setScratchPadEnabled(next, false);
 		try {
-			await authApi.updateSettings({ scratchPadEnabled: next });
-			auth.updateSettings({ scratchPadEnabled: next });
-			toast.success(next ? 'Scratch pad enabled' : 'Scratch pad disabled');
+			// Preferences uses and keeps the new value at once, then saves it. A
+			// failed save keeps that value on this device, so report the sync.
+			const enabled = await preferences.toggleScratchPad();
+			toast.success(enabled ? 'Scratch pad enabled' : 'Scratch pad disabled');
 		} catch (err: unknown) {
-			toast.error(err instanceof Error ? err.message : 'Failed to save settings');
+			reportPreferenceSaveFailure('scratch pad setting', err);
 		}
 	}
 
@@ -83,11 +75,7 @@
 			await preferences.setDailyGoal(goal);
 			toast.success(`Daily goal updated to ${goal} cards/day`);
 		} catch (err: unknown) {
-			toast.error(
-				err instanceof Error
-					? `Could not save your Daily goal to your account: ${err.message}`
-					: 'Could not save your Daily goal to your account'
-			);
+			reportPreferenceSaveFailure('Daily goal', err);
 		}
 	}
 
@@ -132,7 +120,11 @@
 			exportDate: new Date().toISOString(),
 			application: 'voabkr',
 			user: auth.user,
-			settings: auth.settings,
+			settings: {
+				cardsPerDay: preferences.dailyGoal,
+				studyDirection: preferences.studyDirection,
+				scratchPadEnabled: preferences.scratchPadEnabled
+			},
 			pendingOfflineReviews: reviewSync.pendingCount
 		};
 		const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
@@ -295,7 +287,7 @@
 						<button
 							type="button"
 							onclick={() => handleDirectionChange('koreanToEnglish')}
-							class="flex min-h-[48px] flex-col items-center justify-center rounded-xl border p-2 text-xs font-bold transition active:scale-95 {studySession.studyDirection ===
+							class="flex min-h-[48px] flex-col items-center justify-center rounded-xl border p-2 text-xs font-bold transition active:scale-95 {preferences.studyDirection ===
 							'koreanToEnglish'
 								? 'border-primary bg-primary text-white shadow-xs'
 								: 'border-border-subtle bg-canvas text-ink-secondary hover:text-ink-primary'}"
@@ -320,7 +312,7 @@
 						<button
 							type="button"
 							onclick={() => handleDirectionChange('englishToKorean')}
-							class="flex min-h-[48px] flex-col items-center justify-center rounded-xl border p-2 text-xs font-bold transition active:scale-95 {studySession.studyDirection ===
+							class="flex min-h-[48px] flex-col items-center justify-center rounded-xl border p-2 text-xs font-bold transition active:scale-95 {preferences.studyDirection ===
 							'englishToKorean'
 								? 'border-primary bg-primary text-white shadow-xs'
 								: 'border-border-subtle bg-canvas text-ink-secondary hover:text-ink-primary'}"
@@ -360,15 +352,15 @@
 						<button
 							type="button"
 							role="switch"
-							aria-checked={studySession.scratchPadEnabled}
+							aria-checked={preferences.scratchPadEnabled}
 							onclick={handleScratchPadToggle}
-							class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out {studySession.scratchPadEnabled
+							class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out {preferences.scratchPadEnabled
 								? 'bg-primary'
 								: 'bg-border-subtle'}"
 							aria-label="Toggle iPad Scratch Pad"
 						>
 							<span
-								class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-xs transition duration-200 ease-in-out {studySession.scratchPadEnabled
+								class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-xs transition duration-200 ease-in-out {preferences.scratchPadEnabled
 									? 'translate-x-5'
 									: 'translate-x-0'}"
 							></span>

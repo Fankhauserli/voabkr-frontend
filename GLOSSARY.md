@@ -114,6 +114,10 @@ _Avoid_: accuracy, pass rate, success rate
 Which side of a Card is the prompt: `koreanToEnglish` shows the Korean and asks for the English; `englishToKorean` the reverse.
 _Avoid_: mode, orientation, side, order
 
+**Scratch pad**:
+A handwriting area the study screen can show beneath a Card, for practising Hangul with a stylus or finger. It is cleared whenever the Card changes.
+_Avoid_: notepad, whiteboard, drawing board
+
 ### Without a connection
 
 **Remembered learner**:
