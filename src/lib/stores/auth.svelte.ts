@@ -1,14 +1,16 @@
 import type { UserProfile, UserSettings } from '$lib/types';
 import { authApi } from '$lib/api/auth';
 import { ApiError } from '$lib/api/client';
+import { browserStorage } from '$lib/device/browserStorage';
 import { studySession } from '$lib/stores/study.svelte';
 import { reviewSync } from '$lib/stores/syncQueue.svelte';
+import { DEFAULT_DAILY_GOAL, preferences } from './preferences.svelte';
 
 /** Where the learner the device remembers is kept between launches. */
 export const REMEMBERED_LEARNER_KEY = 'voabkr_learner';
 
 const DEFAULT_SETTINGS: UserSettings = {
-	cardsPerDay: 20,
+	cardsPerDay: DEFAULT_DAILY_GOAL,
 	studyDirection: 'koreanToEnglish',
 	scratchPadEnabled: false
 };
@@ -42,17 +44,11 @@ export interface AuthStoreOptions {
 	 * backend has confirmed that this session really is theirs.
 	 */
 	onLearnerChange?: (learnerId: number | null, sessionConfirmed: boolean) => void;
-}
-
-function browserStorage(): AuthStorage | null {
-	try {
-		if (typeof window !== 'undefined' && window.localStorage) {
-			return window.localStorage;
-		}
-	} catch {
-		// Storage can be unavailable, for example when the browser blocks it.
-	}
-	return null;
+	/**
+	 * Told the settings the account returned, and the ones remembered from the
+	 * last launch, so the Preferences module can adopt the values it owns.
+	 */
+	onSettings?: (settings: UserSettings | null) => void;
 }
 
 /** A real 401 is the only answer that means the session was revoked. */
@@ -94,16 +90,16 @@ class AuthStore {
 	userId = $derived(this.user?.id ?? null);
 	userName = $derived(this.user?.name ?? '');
 	userEmail = $derived(this.user?.email ?? '');
-	cardsPerDay = $derived(this.settings?.cardsPerDay ?? 20);
-
 	readonly #api: AuthProfileApi;
 	readonly #storage: AuthStorage | null;
 	readonly #onLearnerChange: (learnerId: number | null, sessionConfirmed: boolean) => void;
+	readonly #onSettings: (settings: UserSettings | null) => void;
 
 	constructor(options: AuthStoreOptions = {}) {
 		this.#api = options.api ?? authApi;
 		this.#storage = options.storage === undefined ? browserStorage() : options.storage;
 		this.#onLearnerChange = options.onLearnerChange ?? (() => {});
+		this.#onSettings = options.onSettings ?? (() => {});
 		this.#restore();
 	}
 
@@ -140,6 +136,7 @@ class AuthStore {
 			const settings = await this.#api.getSettings();
 			this.settings = settings;
 			this.#remember();
+			this.#onSettings(settings);
 			if (settings.studyDirection) {
 				studySession.setStudyDirection(settings.studyDirection, false);
 			}
@@ -196,10 +193,6 @@ class AuthStore {
 		this.#remember();
 	}
 
-	updateCardsPerDay(cardsPerDay: number) {
-		this.updateSettings({ cardsPerDay });
-	}
-
 	setVerified(verified: boolean) {
 		if (this.user) {
 			this.user.isVerified = verified;
@@ -240,6 +233,10 @@ class AuthStore {
 			}
 			this.user = remembered.user;
 			this.settings = isUserSettings(remembered.settings) ? remembered.settings : null;
+			// The Preferences module can adopt the Daily goal the device remembered
+			// before the settings request settles, so a launch with no connection
+			// keeps the learner's goal rather than falling back to the default.
+			this.#onSettings(this.settings);
 			// The queue must know the learner even while the profile request is
 			// still in flight, so a Grade given in the meantime is owned correctly.
 			// It may not upload anything until a profile request confirms the
@@ -279,6 +276,7 @@ class AuthStore {
 
 export const auth = new AuthStore({
 	onLearnerChange: (learnerId, sessionConfirmed) =>
-		reviewSync.setLearner(learnerId, sessionConfirmed)
+		reviewSync.setLearner(learnerId, sessionConfirmed),
+	onSettings: (settings) => preferences.applyAccountSettings(settings)
 });
 export { AuthStore };

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { auth } from '$lib/stores/auth.svelte';
+	import { preferences } from '$lib/stores/preferences.svelte';
 	import { reviewApi } from '$lib/api/reviews';
 	import { deckApi } from '$lib/api/decks';
 	import { clientCache } from '$lib/api/cache';
@@ -58,11 +59,9 @@
 	}
 
 	let dueCount = $derived(dueCards?.length ?? 0);
-	let targetGoal = $derived(auth.cardsPerDay || 20);
-	let completedToday = $derived(Math.max(0, targetGoal - dueCount));
-	let goalPercentage = $derived(
-		targetGoal > 0 ? Math.min(100, Math.round((completedToday / targetGoal) * 100)) : 0
-	);
+	let dailyGoal = $derived(preferences.dailyGoal);
+	let completedToday = $derived(Math.max(0, dailyGoal - dueCount));
+	let goalPercentage = $derived(Math.min(100, Math.round((completedToday / dailyGoal) * 100)));
 
 	let vocabDue = $derived(
 		(dueCards ?? []).filter(
@@ -139,7 +138,7 @@
 					<div class="flex items-center justify-between">
 						<div>
 							<span class="text-xs font-bold tracking-wider text-ink-muted uppercase"
-								>Daily Target</span
+								>Daily Goal</span
 							>
 							<h2 class="mt-0.5 text-base font-bold text-ink-primary">Today's Progress</h2>
 						</div>
@@ -149,7 +148,7 @@
 					<div class="my-4 flex items-baseline gap-1.5">
 						<span class="text-3xl font-extrabold text-ink-primary">{completedToday}</span>
 						<span class="text-sm font-semibold text-ink-secondary"
-							>/ {targetGoal} Cards Completed</span
+							>/ {dailyGoal} Cards Completed</span
 						>
 					</div>
 				</div>

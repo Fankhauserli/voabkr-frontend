@@ -5,6 +5,7 @@
 	import { reviewSync } from '$lib/stores/syncQueue.svelte';
 	import { clientCache } from '$lib/api/cache';
 	import { studySession } from '$lib/stores/study.svelte';
+	import { preferences } from '$lib/stores/preferences.svelte';
 	import { toast } from '$lib/stores/toast.svelte';
 	import { setStatusBarTheme } from '$lib/utils/statusBar';
 	import { selectionClick } from '$lib/utils/haptics';
@@ -17,7 +18,6 @@
 	let isSavingName = $state(false);
 	let isLoggingOut = $state(false);
 	let isResendingEmail = $state(false);
-	let selectedGoal = $state(20);
 	let currentTheme = $state<'light' | 'dark'>('light');
 	let showDeleteModal = $state(false);
 	let isDeletingAccount = $state(false);
@@ -27,7 +27,6 @@
 			name = auth.user.name;
 		}
 		if (auth.settings) {
-			selectedGoal = auth.settings.cardsPerDay;
 			if (auth.settings.studyDirection) {
 				studySession.setStudyDirection(auth.settings.studyDirection, false);
 			}
@@ -78,13 +77,17 @@
 
 	async function handleGoalChange(goal: number) {
 		selectionClick();
-		selectedGoal = goal;
 		try {
-			await authApi.updateSettings({ cardsPerDay: goal });
-			auth.updateCardsPerDay(goal);
+			// Preferences uses and stores the value at once, then saves it. A failed
+			// save keeps that value on this device, so report only the sync failure.
+			await preferences.setDailyGoal(goal);
 			toast.success(`Daily goal updated to ${goal} cards/day`);
 		} catch (err: unknown) {
-			toast.error(err instanceof Error ? err.message : 'Failed to save settings');
+			toast.error(
+				err instanceof Error
+					? `Could not save your Daily goal to your account: ${err.message}`
+					: 'Could not save your Daily goal to your account'
+			);
 		}
 	}
 
@@ -257,9 +260,9 @@
 			<h2 class="text-xs font-bold tracking-wider text-ink-muted uppercase">Study Preferences</h2>
 
 			<div class="mt-3">
-				<span class="mb-1 block text-xs font-semibold text-ink-primary"> Daily Review Target </span>
+				<span class="mb-1 block text-xs font-semibold text-ink-primary"> Daily Goal </span>
 				<p class="mb-3 text-xs leading-relaxed text-ink-secondary">
-					Choose how many cards to study and review each day.
+					Choose how many new cards the app introduces each day. Due cards are always offered.
 				</p>
 
 				<!-- Stepper pills -->
@@ -268,7 +271,7 @@
 						<button
 							type="button"
 							onclick={() => handleGoalChange(count)}
-							class="min-h-[44px] rounded-xl border py-2 text-xs font-bold transition active:scale-95 {selectedGoal ===
+							class="min-h-[44px] rounded-xl border py-2 text-xs font-bold transition active:scale-95 {preferences.dailyGoal ===
 							count
 								? 'border-primary bg-primary text-white shadow-xs'
 								: 'border-border-subtle bg-canvas text-ink-secondary hover:text-ink-primary'}"
