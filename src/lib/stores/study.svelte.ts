@@ -51,11 +51,6 @@ export interface StudySessionCollaborators {
 	sync?: SyncTrigger;
 }
 
-/** A Review schedule before a New Card's first Grade. */
-function newCardSchedule(answeredAt: Date): ReviewSchedule {
-	return { interval: 0, efactor: 2.5, repetitions: 0, nextReviewAt: answeredAt };
-}
-
 /** Every Card's Review schedule, gathered from the held Decks. */
 function schedulesOf(decks: readonly DeckContents[]): SvelteMap<number, ReviewSchedule> {
 	const schedules = new SvelteMap<number, ReviewSchedule>();
