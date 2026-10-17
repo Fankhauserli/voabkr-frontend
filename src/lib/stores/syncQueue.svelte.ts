@@ -1,6 +1,7 @@
 import { SvelteDate } from 'svelte/reactivity';
 import { reviewApi } from '$lib/api/reviews';
 import { DeviceStore, type QueuedGrade } from '$lib/device/deviceStore';
+import type { ReviewSchedule } from '$lib/scheduling/reviewSchedule';
 import type { SM2Rating } from '$lib/types';
 
 /** The queue's store, overridable so a test can use a database of its own. */
@@ -61,11 +62,29 @@ class ReviewSyncQueue {
 		return this.#queue;
 	}
 
-	async addReview(cardId: number, grade: SM2Rating): Promise<{ synced: boolean }> {
+	/**
+	 * Records a Grade, with the Review schedule the device computed for it.
+	 *
+	 * The schedule is written to the device store whichever way the Grade
+	 * travels, so the next Study session sees the Card's new Due moment rather
+	 * than repeating the one just answered. A Grade the backend accepts is not
+	 * queued; one that cannot be sent is, so a later flush carries it.
+	 */
+	async addReview(
+		cardId: number,
+		grade: SM2Rating,
+		answeredAt: Date = new SvelteDate(),
+		schedule: ReviewSchedule | null = null
+	): Promise<{ synced: boolean }> {
 		await this.#ready;
 
 		if (this.isOnline) {
 			try {
+				// The device owns the Review schedule: write it before the network
+				// so a slow or failed submission cannot leave it stale.
+				if (schedule) {
+					await this.#writeSchedule(cardId, schedule);
+				}
 				await reviewApi.submitReviewScore(cardId, grade);
 				return { synced: true };
 			} catch (err) {
@@ -76,23 +95,34 @@ class ReviewSyncQueue {
 			}
 		}
 
-		const answeredAt = new SvelteDate();
 		const store = await this.#store;
 		if (store) {
 			const queued = await store.appendQueuedGrade({
 				cardId,
 				grade,
 				answeredAt,
-				schedule: null
+				schedule
 			});
 			this.#queue.push(queued);
 		} else {
 			// The store could not be opened: keep the Grade for this sitting so a
 			// connection can still carry it, though a reload would lose it.
-			this.#queue.push({ id: --this.#fallbackId, cardId, grade, answeredAt, schedule: null });
+			this.#queue.push({ id: --this.#fallbackId, cardId, grade, answeredAt, schedule });
 		}
 
 		return { synced: false };
+	}
+
+	/** Writes a Grade's Review schedule to the device store before the Grade is submitted. */
+	async #writeSchedule(cardId: number, schedule: ReviewSchedule): Promise<void> {
+		const store = await this.#store;
+		if (!store) return;
+		try {
+			await store.writeSchedule(cardId, schedule);
+		} catch (error) {
+			// A stale local Due moment is repaired by the next Sync's pull.
+			console.error('[SyncQueue] Failed to write the Review schedule:', error);
+		}
 	}
 
 	async flushQueue(): Promise<void> {
