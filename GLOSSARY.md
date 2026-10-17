@@ -116,6 +116,10 @@ _Avoid_: mode, orientation, side, order
 
 ### Without a connection
 
+**Remembered learner**:
+The learner the device last signed in, kept so the app opens signed in with no connection. Only a real 401 from the backend signs them out; a failed request does not. Their Queued Grades outlive a logout.
+_Avoid_: cached user, offline user, stored session
+
 **Downloaded Deck**:
 A Deck whose Cards and their Review schedules are held on the device, so it can be studied with no connection. The app marks these in the Library.
 _Avoid_: offline deck, cached deck, saved deck

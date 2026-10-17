@@ -12,15 +12,19 @@ export interface ReviewSyncQueueOptions {
  * The Grade queue: Grades the backend has not accepted yet, kept in the device
  * store so they are durable across a reload and never share a bucket with cache.
  *
- * It submits immediately when online and otherwise records the Grade. A flush
- * sends the queue in order and stops at the first failure; Sync (#30) replaces
- * that with a batch that parks a refused Grade instead.
+ * Each Queued Grade belongs to the learner who gave it, so it survives a
+ * sign-out and uploads only when that same learner signs back in. A flush sends
+ * the current learner's Grades in order and stops at the first failure; Sync
+ * (#30) replaces that with a batch that parks a refused Grade instead.
  */
 class ReviewSyncQueue {
 	readonly #store: Promise<DeviceStore | null>;
 	readonly #ready: Promise<void>;
 	#queue = $state<QueuedGrade[]>([]);
 	#fallbackId = 0;
+	#flushRequested = false;
+	#learnerId = $state<number | null>(null);
+	#sessionConfirmed = false;
 	public isSyncing = $state<boolean>(false);
 	public isOnline = $state<boolean>(true);
 
@@ -61,10 +65,36 @@ class ReviewSyncQueue {
 		return this.#queue;
 	}
 
+	/** The learner whose Queued Grades are recorded and may be sent. */
+	public get learnerId(): number | null {
+		return this.#learnerId;
+	}
+
+	/**
+	 * Tells the queue which learner is signed in.
+	 *
+	 * `sessionConfirmed` is false while the learner is only remembered from the
+	 * last launch. Their new Grades are recorded under them, but nothing uploads
+	 * until the backend confirms the session belongs to them; this is what stops
+	 * a different session from carrying their Grades.
+	 */
+	setLearner(learnerId: number | null, sessionConfirmed: boolean): void {
+		this.#learnerId = learnerId;
+		this.#sessionConfirmed = learnerId !== null && sessionConfirmed;
+		if (this.#sessionConfirmed) {
+			void this.flushQueue();
+		} else {
+			// A flush requested for a session that is no longer confirmed must not
+			// run once the current one finishes.
+			this.#flushRequested = false;
+		}
+	}
+
 	async addReview(cardId: number, grade: SM2Rating): Promise<{ synced: boolean }> {
 		await this.#ready;
+		const learnerId = this.#learnerId;
 
-		if (this.isOnline) {
+		if (this.#sessionConfirmed && this.isOnline) {
 			try {
 				await reviewApi.submitReviewScore(cardId, grade);
 				return { synced: true };
@@ -80,6 +110,7 @@ class ReviewSyncQueue {
 		const store = await this.#store;
 		if (store) {
 			const queued = await store.appendQueuedGrade({
+				learnerId,
 				cardId,
 				grade,
 				answeredAt,
@@ -89,7 +120,14 @@ class ReviewSyncQueue {
 		} else {
 			// The store could not be opened: keep the Grade for this sitting so a
 			// connection can still carry it, though a reload would lose it.
-			this.#queue.push({ id: --this.#fallbackId, cardId, grade, answeredAt, schedule: null });
+			this.#queue.push({
+				id: --this.#fallbackId,
+				learnerId,
+				cardId,
+				grade,
+				answeredAt,
+				schedule: null
+			});
 		}
 
 		return { synced: false };
@@ -97,21 +135,31 @@ class ReviewSyncQueue {
 
 	async flushQueue(): Promise<void> {
 		await this.#ready;
+		// Signed out, unconfirmed, or the learner changed while this flush was
+		// waiting: nothing here may travel under the current session.
+		if (!this.#sessionConfirmed) return;
+		const learnerId = this.#learnerId;
+		if (learnerId === null) return;
 		if (typeof navigator !== 'undefined' && !navigator.onLine) return;
-		if (this.isSyncing || this.#queue.length === 0) return;
+		if (this.isSyncing) {
+			this.#flushRequested = true;
+			return;
+		}
 
 		this.isSyncing = true;
 
 		try {
-			while (this.#queue.length > 0) {
-				const item = this.#queue[0];
+			while (this.#sessionConfirmed && this.#learnerId === learnerId) {
+				const index = this.#queue.findIndex((item) => item.learnerId === learnerId);
+				if (index < 0) break;
+				const item = this.#queue[index];
 				try {
 					await reviewApi.submitReviewScore(item.cardId, item.grade);
 					const store = await this.#store;
 					if (store) {
 						await store.removeQueuedGrades([item.id]);
 					}
-					this.#queue.shift();
+					this.#queue.splice(index, 1);
 				} catch (err) {
 					console.warn('[SyncQueue] Flushing stopped due to error:', err);
 					break;
@@ -119,6 +167,10 @@ class ReviewSyncQueue {
 			}
 		} finally {
 			this.isSyncing = false;
+			if (this.#flushRequested) {
+				this.#flushRequested = false;
+				void this.flushQueue();
+			}
 		}
 	}
 
