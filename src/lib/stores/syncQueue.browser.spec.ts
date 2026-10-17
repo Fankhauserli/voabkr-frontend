@@ -26,6 +26,7 @@ describe('ReviewSyncQueue', () => {
 		Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
 		name = `voabkr-queue-test-${crypto.randomUUID()}`;
 		queue = new ReviewSyncQueue({ databaseName: name });
+		queue.setLearner(7, true);
 	});
 
 	afterEach(async () => {
@@ -58,6 +59,7 @@ describe('ReviewSyncQueue', () => {
 		expect(queue.pendingCount).toBe(1);
 		expect(queue.items[0].cardId).toBe(202);
 		expect(queue.items[0].grade).toBe(1);
+		expect(queue.items[0].learnerId).toBe(7);
 
 		await queue.close();
 		queue = new ReviewSyncQueue({ databaseName: name });
@@ -65,6 +67,7 @@ describe('ReviewSyncQueue', () => {
 
 		expect(queue.pendingCount).toBe(1);
 		expect(queue.items[0].cardId).toBe(202);
+		expect(queue.items[0].learnerId).toBe(7);
 	});
 
 	it('queues a Grade when the online submission fails', async () => {
@@ -74,6 +77,7 @@ describe('ReviewSyncQueue', () => {
 
 		expect(result).toEqual({ synced: false });
 		expect(queue.pendingCount).toBe(1);
+		expect(queue.items[0].learnerId).toBe(7);
 	});
 
 	it('flushes Queued Grades in the order they were given', async () => {
@@ -98,6 +102,80 @@ describe('ReviewSyncQueue', () => {
 		queue = new ReviewSyncQueue({ databaseName: name });
 		await queue.ready;
 		expect(queue.pendingCount).toBe(0);
+	});
+
+	it('uploads the Queued Grades of the learner who signs back in', async () => {
+		setOnline(false);
+		await queue.addReview(11, 3);
+		queue.setLearner(null, false);
+
+		setOnline(true);
+		const submit = vi.spyOn(reviewApi, 'submitReviewScore').mockResolvedValue({ message: 'OK' });
+
+		queue.setLearner(7, true);
+
+		await vi.waitFor(() => expect(queue.pendingCount).toBe(0));
+		expect(submit).toHaveBeenCalledExactlyOnceWith(11, 3);
+	});
+
+	it("does not send another learner's Queued Grades", async () => {
+		setOnline(false);
+		await queue.addReview(11, 3);
+		queue.setLearner(8, true);
+		await queue.addReview(22, 4);
+
+		setOnline(true);
+		const submit = vi.spyOn(reviewApi, 'submitReviewScore').mockResolvedValue({ message: 'OK' });
+
+		queue.setLearner(8, true);
+		await vi.waitFor(() => expect(queue.pendingCount).toBe(1));
+		expect(submit).toHaveBeenCalledExactlyOnceWith(22, 4);
+		expect(queue.items[0].cardId).toBe(11);
+
+		queue.setLearner(7, true);
+		await vi.waitFor(() => expect(queue.pendingCount).toBe(0));
+		expect(submit).toHaveBeenLastCalledWith(11, 3);
+	});
+
+	it("does not upload a remembered learner's Grades until the backend confirms the session", async () => {
+		setOnline(false);
+		await queue.addReview(44, 3);
+		setOnline(true);
+		const submit = vi.spyOn(reviewApi, 'submitReviewScore').mockResolvedValue({ message: 'OK' });
+
+		// A remembered learner only establishes ownership; the session is unconfirmed.
+		queue.setLearner(7, false);
+		await queue.flushQueue();
+		expect(submit).not.toHaveBeenCalled();
+		expect(queue.pendingCount).toBe(1);
+
+		// Once the profile request proves the session is theirs, it uploads.
+		queue.setLearner(7, true);
+		await vi.waitFor(() => expect(queue.pendingCount).toBe(0));
+		expect(submit).toHaveBeenCalledExactlyOnceWith(44, 3);
+	});
+
+	it('keeps Queued Grades across a sign-out and a reload, still owned by their learner', async () => {
+		setOnline(false);
+		await queue.addReview(33, 1);
+		queue.setLearner(null, false);
+		await queue.close();
+
+		queue = new ReviewSyncQueue({ databaseName: name });
+		await queue.ready;
+		expect(queue.pendingCount).toBe(1);
+		expect(queue.items[0].learnerId).toBe(7);
+
+		// Signed out, a flush sends nothing.
+		setOnline(true);
+		const submit = vi.spyOn(reviewApi, 'submitReviewScore').mockResolvedValue({ message: 'OK' });
+		await queue.flushQueue();
+		expect(submit).not.toHaveBeenCalled();
+
+		// The owner signing in flushes it.
+		queue.setLearner(7, true);
+		await vi.waitFor(() => expect(queue.pendingCount).toBe(0));
+		expect(submit).toHaveBeenCalledExactlyOnceWith(33, 1);
 	});
 
 	it('clears the queue and its stored records', async () => {
