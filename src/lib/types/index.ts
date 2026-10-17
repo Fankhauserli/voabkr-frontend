@@ -67,6 +67,17 @@ export interface ResetPasswordRequest {
 	password: string;
 }
 
+/**
+ * A Review schedule as a Card response carries it: the state that decides when
+ * the Review is next Due. The backend serves `nextReviewAt` as RFC 3339.
+ */
+export interface CardReviewSchedule {
+	interval: number;
+	efactor: number;
+	repetitions: number;
+	nextReviewAt: string;
+}
+
 export interface Card {
 	id: number;
 	deckId: number;
@@ -75,6 +86,8 @@ export interface Card {
 	context: string;
 	example: string;
 	isReviewed?: boolean;
+	/** The caller's Review schedule for this Card, absent until they have studied it. */
+	reviewSchedule?: CardReviewSchedule | null;
 }
 
 export interface CardRequest {

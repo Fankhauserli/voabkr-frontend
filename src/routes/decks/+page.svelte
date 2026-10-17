@@ -5,6 +5,8 @@
 	import { selectionClick } from '$lib/utils/haptics';
 	import { auth } from '$lib/stores/auth.svelte';
 	import { modal } from '$lib/stores/modal.svelte';
+	import { toast } from '$lib/stores/toast.svelte';
+	import { downloadedDecks } from '$lib/device/downloadedDecks.svelte';
 	import type { Deck, DeckType } from '$lib/types';
 	import DeckCard from '$lib/components/decks/DeckCard.svelte';
 	import BottomNavBar from '$lib/components/navigation/BottomNavBar.svelte';
@@ -19,10 +21,34 @@
 	let libraryTab = $state<LibraryTab>('all');
 	let typeFilter = $state<'all' | DeckType>('all');
 	let isLoading = $state(true);
+	let isOnline = $state(typeof navigator === 'undefined' ? true : navigator.onLine);
 
-	onMount(async () => {
-		await loadDecks();
+	onMount(() => {
+		void loadDecks();
+		// The device store opens in the background; the held Decks appear as soon
+		// as it has been read, without delaying the Library.
+		void downloadedDecks.ready;
+
+		const updateConnection = () => {
+			isOnline = navigator.onLine;
+		};
+		window.addEventListener('online', updateConnection);
+		window.addEventListener('offline', updateConnection);
+
+		return () => {
+			window.removeEventListener('online', updateConnection);
+			window.removeEventListener('offline', updateConnection);
+		};
 	});
+
+	async function removeFromDevice(deck: Deck) {
+		try {
+			await downloadedDecks.remove(deck.id);
+			toast.success(`${deck.name} removed from this device`);
+		} catch {
+			toast.error(`Could not remove ${deck.name} from this device`);
+		}
+	}
 
 	async function loadDecks() {
 		if (!clientCache.has('decks:list')) {
@@ -260,7 +286,12 @@
 		{:else}
 			<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
 				{#each filteredDecks as deck (deck.id)}
-					<DeckCard {deck} />
+					<DeckCard
+						{deck}
+						isDownloaded={downloadedDecks.isHeld(deck.id)}
+						isOffline={!isOnline}
+						onRemoveFromDevice={removeFromDevice}
+					/>
 				{/each}
 			</div>
 		{/if}

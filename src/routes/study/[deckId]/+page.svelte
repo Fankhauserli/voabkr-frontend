@@ -3,6 +3,10 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { deckApi } from '$lib/api/decks';
+	import { cardApi } from '$lib/api/cards';
+	import { reviewApi } from '$lib/api/reviews';
+	import { downloadedDecks } from '$lib/device/downloadedDecks.svelte';
+	import { loadStudyDeck } from '$lib/device/loadStudyDeck';
 	import { studySession } from '$lib/stores/study.svelte';
 	import { modal } from '$lib/stores/modal.svelte';
 	import { registerStudySessionGuard } from '$lib/utils/backButton';
@@ -12,9 +16,9 @@
 	import Sm2RatingBar from '$lib/components/study/Sm2RatingBar.svelte';
 	import SessionProgressBar from '$lib/components/study/SessionProgressBar.svelte';
 	import TactileButton from '$lib/components/forms/TactileButton.svelte';
-	import { reviewApi } from '$lib/api/reviews';
 
 	let deck = $state<Deck | null>(null);
+	let needsConnection = $state(false);
 	let deckId = $derived(parseInt(page.params.deckId ?? '0', 10));
 
 	onMount(() => {
@@ -26,27 +30,51 @@
 			return false;
 		});
 
-		(async () => {
-			try {
-				studySession.isLoading = true;
-				const [deckData, cardsData] = await Promise.all([
-					deckApi.getDeckById(deckId),
-					reviewApi.getDueCards(deckId)
-				]);
-				deck = deckData;
-				const deckCards = cardsData.filter((card) => card.deckId === deckId);
-				await studySession.startDeckSession(deckCards, deckId);
-			} catch (err: unknown) {
-				studySession.error = err instanceof Error ? err.message : 'Failed to load deck cards';
-			} finally {
-				studySession.isLoading = false;
-			}
-		})();
+		void loadDeck();
 
 		return () => {
 			unregisterGuard();
 		};
 	});
+
+	async function loadDeck() {
+		studySession.reset();
+		studySession.isLoading = true;
+		needsConnection = false;
+
+		// The Deck's name is a nicety; an offline Deck still studies without it.
+		deckApi
+			.getDeckById(deckId)
+			.then((loaded) => {
+				deck = loaded;
+			})
+			.catch(() => {});
+
+		try {
+			const loaded = await loadStudyDeck(deckId, {
+				isOnline: () => navigator.onLine,
+				isDeckHeld: async () => {
+					await downloadedDecks.ready;
+					return downloadedDecks.isHeld(deckId);
+				},
+				fetchAllCards: (id) => cardApi.getCards(id),
+				fetchDueCards: (id) => reviewApi.getDueCards(id),
+				downloadDeck: (id, cards) => downloadedDecks.download(id, cards),
+				readHeldDeck: (id) => downloadedDecks.contents(id)
+			});
+
+			if (loaded.kind === 'needs-connection') {
+				needsConnection = true;
+				return;
+			}
+
+			await studySession.startDeckSession(loaded.sessionCards, deckId);
+		} catch (err: unknown) {
+			studySession.error = err instanceof Error ? err.message : 'Failed to load deck cards';
+		} finally {
+			studySession.isLoading = false;
+		}
+	}
 
 	function handleExitRequest() {
 		modal.openExitStudyConfirm(() => {
@@ -184,6 +212,40 @@
 					class="h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent"
 				></div>
 				<p class="mt-4 text-xs font-semibold text-ink-secondary">Loading deck cards...</p>
+			</div>
+		{:else if needsConnection}
+			<div
+				class="w-full max-w-sm rounded-2xl border border-amber/40 bg-surface p-6 text-center shadow-xs"
+			>
+				<div
+					class="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-amber/10 text-amber"
+				>
+					<svg
+						class="h-7 w-7"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						aria-hidden="true"
+					>
+						<path d="M2 2l20 20" />
+						<path d="M8.5 16.4A4.5 4.5 0 0 1 10 7.6" />
+						<path d="M5 17a5 5 0 0 1 1.5-9.8" />
+						<path d="M9.5 21a4 4 0 0 1 1.2-7.8" />
+					</svg>
+				</div>
+				<h2 class="text-lg font-bold text-ink-primary">This Deck needs a connection</h2>
+				<p class="mt-1 text-xs leading-relaxed text-ink-secondary">
+					It is not saved on this device yet. Connect to the internet and study it once to keep it
+					available offline.
+				</p>
+				<div class="mt-6 flex flex-col gap-2">
+					<a href="/decks" class="block">
+						<TactileButton variant="primary" fullWidth>Back to Decks</TactileButton>
+					</a>
+				</div>
 			</div>
 		{:else if studySession.totalCards === 0}
 			<div
