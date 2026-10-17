@@ -26,9 +26,7 @@
 	let deckId = $derived(parseInt(page.params.id ?? '0', 10));
 
 	let isOwner = $derived(
-		deck &&
-			(deck.userAccessRole === 'owner' ||
-				(auth.user && (deck.ownerId === auth.user.id || deck.owner_id === auth.user.id)))
+		deck && (deck.userAccessRole === 'owner' || (auth.user && deck.ownerId === auth.user.id))
 	);
 	let canEdit = $derived(isOwner || deck?.userAccessRole === 'edit');
 

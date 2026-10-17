@@ -57,6 +57,12 @@
 		errorMessage = null;
 
 		try {
+			// Signing in changes who the session belongs to. Forget the previous
+			// learner first, so that if the follow-up profile request fails before
+			// the new learner is confirmed, the old learner's identity (and their
+			// Queued Grades) cannot travel under the new session.
+			auth.logout();
+
 			if (activeTab === 'login') {
 				await authApi.login({
 					email: email.trim(),

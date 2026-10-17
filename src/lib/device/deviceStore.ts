@@ -37,6 +37,12 @@ export interface DownloadedDeck {
 export interface QueuedGrade {
 	/** Assigned when appended, so the queue keeps the order the Grades were given. */
 	id: number;
+	/**
+	 * The learner who gave the Grade. It survives a sign-out, so the Grade uploads
+	 * only when that learner signs back in. Null for a Grade migrated from the old
+	 * localStorage queue, which predates learner ownership.
+	 */
+	learnerId: number | null;
 	cardId: number;
 	grade: SM2Rating;
 	answeredAt: Date;
@@ -57,6 +63,7 @@ interface NewCardDayRecord {
 
 /** A Grade to record, with the Review schedule it produced when one is known. */
 export interface GradeToAppend {
+	learnerId: number | null;
 	cardId: number;
 	grade: SM2Rating;
 	answeredAt: Date;
@@ -173,6 +180,7 @@ export class DeviceStore {
 		}
 		const id = (await requestResult(
 			tx.objectStore(QUEUED_GRADES).add({
+				learnerId: entry.learnerId,
 				cardId: entry.cardId,
 				grade: entry.grade,
 				answeredAt: entry.answeredAt,
@@ -190,7 +198,8 @@ export class DeviceStore {
 		const done = transactionComplete(tx);
 		const grades = (await requestResult(tx.objectStore(QUEUED_GRADES).getAll())) as QueuedGrade[];
 		await done;
-		return grades;
+		// A Grade written before learner ownership existed has no owner recorded.
+		return grades.map((grade) => ({ ...grade, learnerId: grade.learnerId ?? null }));
 	}
 
 	/** Removes Queued Grades by id, leaving every other record alone. */
@@ -267,6 +276,8 @@ export class DeviceStore {
 			if (seen.has(key)) continue;
 			seen.add(key);
 			grades.add({
+				// The old queue does not know which learner gave the Grade.
+				learnerId: null,
 				cardId: legacy.cardId,
 				grade: legacy.ease,
 				answeredAt: new Date(legacy.timestamp),
