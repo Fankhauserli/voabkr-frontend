@@ -204,6 +204,9 @@ jobs:
         run: |
           set -euo pipefail
 
+          # Create the keystore and its properties as owner-only files.
+          umask 077
+
           missing=()
           for name in \
             ANDROID_KEYSTORE_BASE64 \
@@ -515,3 +518,12 @@ jobs:
           fi
 
           echo "Verified releases v${VERSION} and ${LATEST_TAG}."
+
+      # The materialised signing material is temporary state, not build output.
+      # Remove it on every path — success, failure, or a skipped publish — so
+      # the runner's workspace never retains the keystore or its passwords
+      # after the job. The upload step only ever reads artifacts/, but the
+      # material should not outlive the steps that needed it regardless.
+      - name: Remove the materialised signing material
+        if: always()
+        run: rm -f android/keystore.jks android/keystore.properties
