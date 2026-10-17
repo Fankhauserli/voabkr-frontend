@@ -1,4 +1,4 @@
-import type { StudyDirection, UpdateSettingsRequest, UserSettings } from '$lib/types';
+import type { AppTheme, StudyDirection, UpdateSettingsRequest, UserSettings } from '$lib/types';
 import { authApi } from '$lib/api/auth';
 import { browserStorage, type DeviceStorage } from '$lib/device/browserStorage';
 
@@ -11,6 +11,9 @@ import { browserStorage, type DeviceStorage } from '$lib/device/browserStorage';
  * no connection; the account is told about a change afterwards. A save that
  * fails leaves the device's value in place and reports the failure to the
  * caller rather than reverting in silence.
+ *
+ * The theme is the exception: the account has no field for it, so it is stored
+ * on the device only and is never sent or restored.
  */
 
 /** The Daily goal for a learner who has never set one. */
@@ -22,12 +25,22 @@ export const DEFAULT_STUDY_DIRECTION: StudyDirection = 'koreanToEnglish';
 /** Whether the scratch pad is shown for a learner who has never set it. */
 export const DEFAULT_SCRATCH_PAD_ENABLED = false;
 
+/** The theme for a learner who has never chosen one. */
+export const DEFAULT_THEME: AppTheme = 'light';
+
 /** Where each preference is kept on the device. */
 const DAILY_GOAL_KEY = 'voabkr_daily_goal';
 /** The name the current app already stores Study direction under: keep it, so no learner is reset. */
 export const STUDY_DIRECTION_KEY = 'voabkr_study_direction';
 /** The name the current app already stores the scratch pad under: keep it, so no learner is reset. */
 export const SCRATCH_PAD_KEY = 'voabkr_scratch_pad_enabled';
+
+/**
+ * Where the theme is kept on the device. The early boot script in `app.html`
+ * reads the same key before the first paint; the test in `preferences.spec.ts`
+ * keeps this constant and that script from drifting apart.
+ */
+export const THEME_KEY = 'voabkr_theme';
 
 /** The device storage preferences are written to. */
 export type PreferencesStorage = DeviceStorage;
@@ -70,6 +83,17 @@ function readLegacyScratchPad(raw: string): boolean | null {
 	return null;
 }
 
+/** Whether a value is one of the two themes. */
+function isTheme(value: unknown): value is AppTheme {
+	return value === 'light' || value === 'dark';
+}
+
+/** Apply a theme to the document, so the whole app renders in it. */
+function applyTheme(theme: AppTheme): void {
+	if (typeof document === 'undefined') return;
+	document.documentElement.classList.toggle('dark', theme === 'dark');
+}
+
 export class PreferencesStore {
 	/** The number of New Cards the app brings into play each Day. */
 	#dailyGoal = $state(DEFAULT_DAILY_GOAL);
@@ -79,6 +103,9 @@ export class PreferencesStore {
 
 	/** Whether the study screen shows the handwriting scratch pad. */
 	#scratchPadEnabled = $state(DEFAULT_SCRATCH_PAD_ENABLED);
+
+	/** The theme this device shows. It is local to the device, never the account. */
+	#theme = $state<AppTheme>(DEFAULT_THEME);
 
 	readonly #storage: PreferencesStorage | null;
 	readonly #endpoint: PreferencesEndpoint;
@@ -117,6 +144,9 @@ export class PreferencesStore {
 			this.#scratchPadEnabled = scratchPad.value;
 			this.#storedScratchPad = scratchPad;
 		}
+
+		this.#theme = this.#readTheme();
+		applyTheme(this.#theme);
 	}
 
 	get dailyGoal(): number {
@@ -131,12 +161,18 @@ export class PreferencesStore {
 		return this.#scratchPadEnabled;
 	}
 
+	/** The theme actually in use, configured or not. */
+	get theme(): AppTheme {
+		return this.#theme;
+	}
+
 	/**
 	 * Adopt the settings the account returned. A change this device made but
 	 * could not save wins, so a failed save is not undone on the next launch.
 	 * Otherwise the account is authoritative, so a preference changed on another
 	 * device reaches this one. Anything the account omits leaves the device's
-	 * value, or the default, in place.
+	 * value, or the default, in place. The account has no theme, so the theme is
+	 * untouched.
 	 */
 	applyAccountSettings(settings: UserSettings | null): void {
 		this.#applyDailyGoal(settings?.cardsPerDay);
@@ -213,6 +249,16 @@ export class PreferencesStore {
 		const enabled = !this.#scratchPadEnabled;
 		await this.setScratchPadEnabled(enabled);
 		return enabled;
+	}
+
+	/**
+	 * Choose the theme. It is used and kept on the device at once. The account
+	 * has no theme field, so this is the one preference that is never sent.
+	 */
+	setTheme(theme: AppTheme): void {
+		this.#theme = theme;
+		this.#storeTheme(theme);
+		applyTheme(theme);
 	}
 
 	#applyDailyGoal(accountGoal: unknown): void {
@@ -294,6 +340,29 @@ export class PreferencesStore {
 	#storeScratchPad(stored: StoredPreference<boolean>): void {
 		this.#storedScratchPad = stored;
 		this.#writePreference(SCRATCH_PAD_KEY, stored);
+	}
+
+	/**
+	 * The theme this device holds, or the default when it holds none. The theme
+	 * is local-only, so it is kept as a bare value the boot script can read.
+	 */
+	#readTheme(): AppTheme {
+		try {
+			const raw = this.#storage?.getItem(THEME_KEY) ?? null;
+			return isTheme(raw) ? raw : DEFAULT_THEME;
+		} catch {
+			return DEFAULT_THEME;
+		}
+	}
+
+	#storeTheme(theme: AppTheme): void {
+		try {
+			// A bare value, not the StoredPreference record: the boot script in
+			// app.html must be able to read it before this module runs.
+			this.#storage?.setItem(THEME_KEY, theme);
+		} catch {
+			// A device that refuses storage still shows the theme for this launch.
+		}
 	}
 }
 

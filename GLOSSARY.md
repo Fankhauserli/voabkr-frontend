@@ -118,6 +118,12 @@ _Avoid_: mode, orientation, side, order
 A handwriting area the study screen can show beneath a Card, for practising Hangul with a stylus or finger. It is cleared whenever the Card changes.
 _Avoid_: notepad, whiteboard, drawing board
 
+### Preferences
+
+**Theme**:
+The app's palette: Hanji paper in light, Sumi ink at night. It is a device preference, never saved to the account, so it does not follow a learner to another device.
+_Avoid_: color scheme, skin
+
 ### Without a connection
 
 **Remembered learner**:

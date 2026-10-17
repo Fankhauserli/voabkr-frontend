@@ -7,9 +7,9 @@
 	import { preferences } from '$lib/stores/preferences.svelte';
 	import { toast } from '$lib/stores/toast.svelte';
 	import { reportPreferenceSaveFailure } from '$lib/utils/preferenceActions';
+	import type { AppTheme, StudyDirection } from '$lib/types';
 	import { setStatusBarTheme } from '$lib/utils/statusBar';
 	import { selectionClick } from '$lib/utils/haptics';
-	import type { StudyDirection } from '$lib/types';
 	import BottomNavBar from '$lib/components/navigation/BottomNavBar.svelte';
 	import TactileButton from '$lib/components/forms/TactileButton.svelte';
 	import TactileInput from '$lib/components/forms/TactileInput.svelte';
@@ -19,7 +19,6 @@
 	let isSavingName = $state(false);
 	let isLoggingOut = $state(false);
 	let isResendingEmail = $state(false);
-	let currentTheme = $state<'light' | 'dark'>('light');
 	let showDeleteModal = $state(false);
 	let isDeletingAccount = $state(false);
 
@@ -79,17 +78,10 @@
 		}
 	}
 
-	function handleThemeToggle(theme: 'light' | 'dark') {
+	function handleThemeToggle(theme: AppTheme) {
 		selectionClick();
-		currentTheme = theme;
-		if (typeof document !== 'undefined') {
-			if (theme === 'dark') {
-				document.documentElement.classList.add('dark');
-			} else {
-				document.documentElement.classList.remove('dark');
-			}
-		}
-		setStatusBarTheme(theme);
+		preferences.setTheme(theme);
+		void setStatusBarTheme(theme);
 	}
 
 	function handleClearCache() {
@@ -383,8 +375,10 @@
 					<div class="flex rounded-xl border border-border-subtle bg-canvas p-1">
 						<button
 							type="button"
+							aria-pressed={preferences.theme === 'light'}
 							onclick={() => handleThemeToggle('light')}
-							class="rounded-lg px-2.5 py-1 text-xs font-bold transition {currentTheme === 'light'
+							class="rounded-lg px-2.5 py-1 text-xs font-bold transition {preferences.theme ===
+							'light'
 								? 'bg-surface text-ink-primary shadow-xs'
 								: 'text-ink-muted hover:text-ink-primary'}"
 						>
@@ -392,8 +386,10 @@
 						</button>
 						<button
 							type="button"
+							aria-pressed={preferences.theme === 'dark'}
 							onclick={() => handleThemeToggle('dark')}
-							class="rounded-lg px-2.5 py-1 text-xs font-bold transition {currentTheme === 'dark'
+							class="rounded-lg px-2.5 py-1 text-xs font-bold transition {preferences.theme ===
+							'dark'
 								? 'bg-surface text-ink-primary shadow-xs'
 								: 'text-ink-muted hover:text-ink-primary'}"
 						>

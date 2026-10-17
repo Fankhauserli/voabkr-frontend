@@ -159,6 +159,9 @@ export type AnkiRating = 1 | 2 | 3 | 4;
 /** Study direction: prompt in Korean and recall English, or vice-versa. */
 export type StudyDirection = 'koreanToEnglish' | 'englishToKorean';
 
+/** The app's palette: warm Hanji paper, or Sumi ink at night. */
+export type AppTheme = 'light' | 'dark';
+
 export interface SM2RatingMeta {
 	ease: AnkiRating;
 	label: string;

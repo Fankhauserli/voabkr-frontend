@@ -6,6 +6,7 @@
 	import { auth } from '$lib/stores/auth.svelte';
 	import { appSync } from '$lib/sync/sync';
 	import { toast } from '$lib/stores/toast.svelte';
+	import { preferences } from '$lib/stores/preferences.svelte';
 	import { initializeBackButton } from '$lib/utils/backButton';
 	import { initializeStatusBar } from '$lib/utils/statusBar';
 	import Toast from '$lib/components/feedback/Toast.svelte';
@@ -26,8 +27,8 @@
 	onMount(() => {
 		let unmounted = false;
 
-		// Initialize native Capacitor status bar & back button
-		initializeStatusBar('light');
+		// Initialize native Capacitor status bar & back button with the theme in use
+		initializeStatusBar(preferences.theme);
 		const cleanBackButton = initializeBackButton({
 			onRootExitPrompt: () => {
 				toast.info('Press back again to exit');

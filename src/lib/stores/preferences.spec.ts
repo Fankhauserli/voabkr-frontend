@@ -1,12 +1,15 @@
-import { describe, it, expect, vi } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
 import type { UpdateSettingsRequest, UserSettings } from '$lib/types';
 import {
 	DEFAULT_DAILY_GOAL,
 	DEFAULT_SCRATCH_PAD_ENABLED,
 	DEFAULT_STUDY_DIRECTION,
+	DEFAULT_THEME,
 	PreferencesStore,
 	SCRATCH_PAD_KEY,
 	STUDY_DIRECTION_KEY,
+	THEME_KEY,
 	type PreferencesEndpoint,
 	type PreferencesStorage
 } from './preferences.svelte';
@@ -50,6 +53,33 @@ const accountSettings = (overrides: Partial<UserSettings> = {}): UserSettings =>
 	scratchPadEnabled: false,
 	...overrides
 });
+
+/** A stand-in document recording the theme class the module applies to it. */
+function fakeDocument(): {
+	documentElement: {
+		classList: {
+			toggle(name: string, force?: boolean): boolean;
+			contains(name: string): boolean;
+		};
+	};
+} {
+	const classes = new Set<string>();
+	return {
+		documentElement: {
+			classList: {
+				toggle(name: string, force?: boolean): boolean {
+					if (force ?? !classes.has(name)) {
+						classes.add(name);
+					} else {
+						classes.delete(name);
+					}
+					return classes.has(name);
+				},
+				contains: (name: string) => classes.has(name)
+			}
+		}
+	};
+}
 
 describe('PreferencesStore — the Daily goal', () => {
 	it('falls back to the one default when no Daily goal was ever set', () => {
@@ -452,5 +482,84 @@ describe('PreferencesStore — the scratch pad', () => {
 		});
 
 		expect(store.scratchPadEnabled).toBe(true);
+	});
+});
+
+describe('PreferencesStore — the theme', () => {
+	afterEach(() => {
+		vi.unstubAllGlobals();
+	});
+
+	it('reports the default theme on a first load where nothing was chosen', () => {
+		const { endpoint } = fakeEndpoint();
+		const store = new PreferencesStore({ storage: memoryStorage(), endpoint });
+
+		expect(store.theme).toBe(DEFAULT_THEME);
+		expect(endpoint.updateSettings).not.toHaveBeenCalled();
+	});
+
+	it('survives a reload: a new module over the same device storage reads the chosen theme', () => {
+		const storage = memoryStorage();
+		const { endpoint } = fakeEndpoint();
+		const store = new PreferencesStore({ storage, endpoint });
+
+		store.setTheme('dark');
+
+		expect(store.theme).toBe('dark');
+		expect(new PreferencesStore({ storage, endpoint }).theme).toBe('dark');
+	});
+
+	it('applies the remembered theme to the document on construction, before the app renders', () => {
+		const document = fakeDocument();
+		vi.stubGlobal('document', document);
+		const storage = memoryStorage({ [THEME_KEY]: 'dark' });
+
+		const store = new PreferencesStore({ storage, endpoint: fakeEndpoint().endpoint });
+
+		expect(store.theme).toBe('dark');
+		expect(document.documentElement.classList.contains('dark')).toBe(true);
+	});
+
+	it('applies a chosen theme and removes it again when light is chosen', () => {
+		const document = fakeDocument();
+		vi.stubGlobal('document', document);
+		const store = new PreferencesStore({
+			storage: memoryStorage(),
+			endpoint: fakeEndpoint().endpoint
+		});
+
+		store.setTheme('dark');
+		expect(document.documentElement.classList.contains('dark')).toBe(true);
+
+		store.setTheme('light');
+		expect(document.documentElement.classList.contains('dark')).toBe(false);
+	});
+
+	it('falls back to the default theme when the stored value is not a theme', () => {
+		const store = new PreferencesStore({
+			storage: memoryStorage({ [THEME_KEY]: 'sepia' }),
+			endpoint: fakeEndpoint().endpoint
+		});
+
+		expect(store.theme).toBe(DEFAULT_THEME);
+	});
+
+	it('never sends the theme to the account and never adopts one from it', () => {
+		const { endpoint, saved } = fakeEndpoint();
+		const store = new PreferencesStore({ storage: memoryStorage(), endpoint });
+
+		store.setTheme('dark');
+		store.applyAccountSettings(accountSettings({ cardsPerDay: 40 }));
+
+		expect(saved).toEqual([]);
+		expect(endpoint.updateSettings).not.toHaveBeenCalled();
+		expect(store.theme).toBe('dark');
+	});
+
+	it('keeps the early boot script in app.html reading the one stored key', () => {
+		const appHtml = readFileSync(new URL('../../app.html', import.meta.url), 'utf8');
+
+		expect(appHtml).toContain(`localStorage.getItem('${THEME_KEY}')`);
+		expect(appHtml).toContain(`document.documentElement.classList.add('dark')`);
 	});
 });
