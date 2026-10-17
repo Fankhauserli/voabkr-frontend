@@ -17,133 +17,92 @@ const dependencies = (overrides: Partial<StudyDeckDependencies> = {}): StudyDeck
 	isOnline: () => true,
 	isDeckHeld: async () => false,
 	fetchAllCards: vi.fn(async () => []),
-	fetchDueCards: vi.fn(async () => []),
 	downloadDeck: vi.fn(async () => {}),
-	readHeldDeck: vi.fn(async () => ({ cards: [] })),
 	...overrides
 });
 
 describe('loadStudyDeck', () => {
-	it('downloads every Card in the Deck, not only the Due ones, when the Deck is studied online', async () => {
+	it('downloads every Card in the Deck, not only the Due ones, when the Deck is first studied online', async () => {
 		const allCards = [card(1), card(2), card(3)];
-		const dueCards = [card(2)];
-		const deps = dependencies({
-			fetchAllCards: vi.fn(async () => allCards),
-			fetchDueCards: vi.fn(async () => dueCards)
-		});
+		const deps = dependencies({ fetchAllCards: vi.fn(async () => allCards) });
 
-		const result = await loadStudyDeck(10, deps);
-
+		expect(await loadStudyDeck(10, deps)).toEqual({ kind: 'ready' });
+		expect(deps.fetchAllCards).toHaveBeenCalledWith(10);
 		expect(deps.downloadDeck).toHaveBeenCalledWith(10, allCards);
-		expect(result).toEqual({ kind: 'ready', sessionCards: dueCards });
 	});
 
 	it('does not download a Deck again when it is already held', async () => {
-		const dueCards = [card(2)];
-		const deps = dependencies({
-			isDeckHeld: async () => true,
-			fetchDueCards: vi.fn(async () => dueCards)
-		});
+		const deps = dependencies({ isDeckHeld: async () => true });
 
-		expect(await loadStudyDeck(10, deps)).toEqual({ kind: 'ready', sessionCards: dueCards });
+		expect(await loadStudyDeck(10, deps)).toEqual({ kind: 'ready' });
 		expect(deps.fetchAllCards).not.toHaveBeenCalled();
 		expect(deps.downloadDeck).not.toHaveBeenCalled();
 	});
 
-	it('still offers the Due Cards when the first download fails', async () => {
-		const dueCards = [card(2)];
-		const deps = dependencies({
-			fetchAllCards: vi.fn(async () => {
-				throw new Error('Network error');
-			}),
-			fetchDueCards: vi.fn(async () => dueCards)
-		});
+	it('makes a Deck already held on the device ready with no connection', async () => {
+		const deps = dependencies({ isOnline: () => false, isDeckHeld: async () => true });
 
-		expect(await loadStudyDeck(10, deps)).toEqual({
-			kind: 'ready',
-			sessionCards: dueCards,
-			downloadFailed: true
-		});
-		expect(deps.downloadDeck).not.toHaveBeenCalled();
-	});
-
-	it('offers only this Deck of the Due Cards the backend reports', async () => {
-		const deps = dependencies({
-			fetchAllCards: vi.fn(async () => [card(1)]),
-			fetchDueCards: vi.fn(async () => [card(1), card(99, 20)])
-		});
-
-		expect(await loadStudyDeck(10, deps)).toEqual({
-			kind: 'ready',
-			sessionCards: [card(1)]
-		});
-	});
-
-	it('reads a Deck already held from the device when there is no connection', async () => {
-		const heldCards = [card(1), card(2)];
-		const deps = dependencies({
-			isOnline: () => false,
-			isDeckHeld: async () => true,
-			readHeldDeck: vi.fn(async () => ({ cards: heldCards }))
-		});
-
-		expect(await loadStudyDeck(10, deps)).toEqual({ kind: 'ready', sessionCards: heldCards });
+		expect(await loadStudyDeck(10, deps)).toEqual({ kind: 'ready' });
 		expect(deps.fetchAllCards).not.toHaveBeenCalled();
-		expect(deps.fetchDueCards).not.toHaveBeenCalled();
+		expect(deps.downloadDeck).not.toHaveBeenCalled();
 	});
 
 	it('says a Deck that is not held needs a connection when there is no connection', async () => {
-		const deps = dependencies({
-			isOnline: () => false,
-			isDeckHeld: async () => false
-		});
+		const deps = dependencies({ isOnline: () => false, isDeckHeld: async () => false });
 
 		expect(await loadStudyDeck(10, deps)).toEqual({ kind: 'needs-connection' });
 		expect(deps.fetchAllCards).not.toHaveBeenCalled();
 		expect(deps.downloadDeck).not.toHaveBeenCalled();
 	});
 
-	it('falls back to a held Deck when the connection drops while fetching the Due Cards', async () => {
-		const heldCards = [card(4)];
-		let online = true;
-		const deps = dependencies({
-			isOnline: () => online,
-			isDeckHeld: async () => true,
-			fetchDueCards: vi.fn(async () => {
-				online = false;
-				throw new Error('Network error');
-			}),
-			readHeldDeck: vi.fn(async () => ({ cards: heldCards }))
-		});
-
-		expect(await loadStudyDeck(10, deps)).toEqual({ kind: 'ready', sessionCards: heldCards });
-	});
-
-	it('says a Deck that is not held needs a connection when the connection drops while fetching the Due Cards', async () => {
+	it('says an unheld Deck needs a connection when the connection drops while fetching its Cards', async () => {
 		let online = true;
 		const deps = dependencies({
 			isOnline: () => online,
 			isDeckHeld: async () => false,
-			fetchDueCards: vi.fn(async () => {
+			fetchAllCards: vi.fn(async () => {
 				online = false;
 				throw new Error('Network error');
 			})
 		});
 
 		expect(await loadStudyDeck(10, deps)).toEqual({ kind: 'needs-connection' });
-		expect(deps.readHeldDeck).not.toHaveBeenCalled();
 	});
 
-	it('reports an online failure to fetch the Due Cards instead of claiming the Deck needs a connection', async () => {
+	it('says an unheld Deck needs a connection when the connection drops while downloading it', async () => {
+		let online = true;
 		const deps = dependencies({
-			isOnline: () => true,
+			isOnline: () => online,
 			isDeckHeld: async () => false,
-			fetchDueCards: vi.fn(async () => {
+			fetchAllCards: vi.fn(async () => [card(1)]),
+			downloadDeck: vi.fn(async () => {
+				online = false;
+				throw new Error('Network error');
+			})
+		});
+
+		expect(await loadStudyDeck(10, deps)).toEqual({ kind: 'needs-connection' });
+	});
+
+	it('reports an online failure to fetch the Cards instead of claiming the Deck needs a connection', async () => {
+		const deps = dependencies({
+			fetchAllCards: vi.fn(async () => {
 				throw new Error('Server error');
 			})
 		});
 
 		await expect(loadStudyDeck(10, deps)).rejects.toThrow('Server error');
-		expect(deps.readHeldDeck).not.toHaveBeenCalled();
+		expect(deps.downloadDeck).not.toHaveBeenCalled();
+	});
+
+	it('reports an online failure to download the Cards instead of claiming the Deck needs a connection', async () => {
+		const deps = dependencies({
+			fetchAllCards: vi.fn(async () => [card(1)]),
+			downloadDeck: vi.fn(async () => {
+				throw new Error('Storage full');
+			})
+		});
+
+		await expect(loadStudyDeck(10, deps)).rejects.toThrow('Storage full');
 	});
 });

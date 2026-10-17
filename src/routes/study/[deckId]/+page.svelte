@@ -4,12 +4,10 @@
 	import { goto } from '$app/navigation';
 	import { deckApi } from '$lib/api/decks';
 	import { cardApi } from '$lib/api/cards';
-	import { reviewApi } from '$lib/api/reviews';
 	import { downloadedDecks } from '$lib/device/downloadedDecks.svelte';
 	import { loadStudyDeck } from '$lib/device/loadStudyDeck';
 	import { studySession } from '$lib/stores/study.svelte';
 	import { modal } from '$lib/stores/modal.svelte';
-	import { toast } from '$lib/stores/toast.svelte';
 	import { registerStudySessionGuard } from '$lib/utils/backButton';
 	import type { Deck } from '$lib/types';
 	import FlashCard from '$lib/components/study/FlashCard.svelte';
@@ -59,9 +57,7 @@
 					return downloadedDecks.isHeld(deckId);
 				},
 				fetchAllCards: (id) => cardApi.getCards(id, { bypassCache: true }),
-				fetchDueCards: (id) => reviewApi.getDueCards(id),
-				downloadDeck: (id, cards) => downloadedDecks.download(id, cards),
-				readHeldDeck: (id) => downloadedDecks.readDeck(id)
+				downloadDeck: (id, cards) => downloadedDecks.download(id, cards)
 			});
 
 			if (loaded.kind === 'needs-connection') {
@@ -69,11 +65,8 @@
 				return;
 			}
 
-			if (loaded.downloadFailed) {
-				toast.error('Could not download this Deck to the device');
-			}
-
-			await studySession.startDeckSession(loaded.sessionCards, deckId);
+			// The Session queue is assembled from the device's copy, online or not.
+			await studySession.startDeckSession(deckId);
 		} catch (err: unknown) {
 			studySession.error = err instanceof Error ? err.message : 'Failed to load deck cards';
 		} finally {

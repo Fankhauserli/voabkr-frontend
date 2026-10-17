@@ -68,6 +68,7 @@ describe('DeviceStore', () => {
 		await store.holdDeck(10);
 		await store.holdDeck(20);
 		const queued = await store.appendQueuedGrade({
+			learnerId: 7,
 			cardId: 1,
 			grade: 3,
 			answeredAt: new Date(2026, 9, 17, 9, 0),
@@ -99,12 +100,14 @@ describe('DeviceStore', () => {
 		const secondAnsweredAt = new Date(2026, 9, 17, 9, 10);
 
 		const first = await store.appendQueuedGrade({
+			learnerId: 7,
 			cardId: 1,
 			grade: 3,
 			answeredAt: firstAnsweredAt,
 			schedule: schedule(23)
 		});
 		const second = await store.appendQueuedGrade({
+			learnerId: 7,
 			cardId: 1,
 			grade: 1,
 			answeredAt: secondAnsweredAt,
@@ -113,8 +116,22 @@ describe('DeviceStore', () => {
 
 		expect(first.id).toBeLessThan(second.id);
 		expect(await store.readQueuedGrades()).toEqual([
-			{ id: first.id, cardId: 1, grade: 3, answeredAt: firstAnsweredAt, schedule: schedule(23) },
-			{ id: second.id, cardId: 1, grade: 1, answeredAt: secondAnsweredAt, schedule: schedule(18) }
+			{
+				id: first.id,
+				learnerId: 7,
+				cardId: 1,
+				grade: 3,
+				answeredAt: firstAnsweredAt,
+				schedule: schedule(23)
+			},
+			{
+				id: second.id,
+				learnerId: 7,
+				cardId: 1,
+				grade: 1,
+				answeredAt: secondAnsweredAt,
+				schedule: schedule(18)
+			}
 		]);
 		// The second Grade's schedule is the one the Card now carries.
 		expect((await store.readDeck(10)).schedules.get(1)).toEqual(schedule(18));
@@ -122,8 +139,89 @@ describe('DeviceStore', () => {
 		await store.removeQueuedGrades([first.id]);
 
 		expect(await store.readQueuedGrades()).toEqual([
-			{ id: second.id, cardId: 1, grade: 1, answeredAt: secondAnsweredAt, schedule: schedule(18) }
+			{
+				id: second.id,
+				learnerId: 7,
+				cardId: 1,
+				grade: 1,
+				answeredAt: secondAnsweredAt,
+				schedule: schedule(18)
+			}
 		]);
+	});
+
+	it('counts the New Cards introduced in a Day once each, and keeps Days apart', async () => {
+		const day = new Date(2026, 9, 17, 4, 0);
+		const nextDay = new Date(2026, 9, 18, 4, 0);
+
+		await store.recordNewCardIntroduced(day, 1);
+		await store.recordNewCardIntroduced(day, 2);
+		await store.recordNewCardIntroduced(day, 1); // a Relearning return consumes nothing more
+
+		expect(await store.readNewCardsIntroduced(day)).toBe(2);
+		expect(await store.readNewCardsIntroduced(nextDay)).toBe(0);
+
+		// The Day's count survives a reload.
+		store.close();
+		store = await DeviceStore.open(name);
+		expect(await store.readNewCardsIntroduced(day)).toBe(2);
+	});
+
+	it('upgrades a database created before the New Card Day record existed', async () => {
+		store.close();
+		await deleteDatabase(name);
+
+		// Create the version 1 schema by hand, as an older app would have.
+		await new Promise<void>((resolve, reject) => {
+			const request = indexedDB.open(name, 1);
+			request.onupgradeneeded = () => {
+				const db = request.result;
+				db.createObjectStore('cards', { keyPath: 'id' }).createIndex('deckId', 'deckId');
+				db.createObjectStore('schedules', { keyPath: 'cardId' });
+				db.createObjectStore('heldDecks', { keyPath: 'deckId' });
+				db.createObjectStore('queuedGrades', { keyPath: 'id', autoIncrement: true });
+			};
+			request.onsuccess = () => {
+				request.result.close();
+				resolve();
+			};
+			request.onerror = () => reject(request.error);
+		});
+
+		store = await DeviceStore.open(name);
+		const day = new Date(2026, 9, 17, 4, 0);
+		await store.recordNewCardIntroduced(day, 7);
+
+		expect(await store.readNewCardsIntroduced(day)).toBe(1);
+	});
+
+	it('keeps the owning learner with each Queued Grade across a reload', async () => {
+		await store.appendQueuedGrade({
+			learnerId: 7,
+			cardId: 1,
+			grade: 3,
+			answeredAt: new Date(2026, 9, 17, 9, 0),
+			schedule: null
+		});
+		await store.appendQueuedGrade({
+			learnerId: 8,
+			cardId: 2,
+			grade: 1,
+			answeredAt: new Date(2026, 9, 17, 9, 5),
+			schedule: null
+		});
+		await store.appendQueuedGrade({
+			learnerId: null,
+			cardId: 3,
+			grade: 2,
+			answeredAt: new Date(2026, 9, 17, 9, 10),
+			schedule: null
+		});
+
+		store.close();
+		store = await DeviceStore.open(name);
+
+		expect((await store.readQueuedGrades()).map((grade) => grade.learnerId)).toEqual([7, 8, null]);
 	});
 
 	it('moves the old localStorage queue into the store, without losing a Grade', async () => {
@@ -149,6 +247,8 @@ describe('DeviceStore', () => {
 			new Date(secondAnsweredAt)
 		]);
 		expect(migrated.map((grade) => grade.schedule)).toEqual([null, null]);
+		// The old queue predates learner ownership; it is kept but owned by nobody.
+		expect(migrated.map((grade) => grade.learnerId)).toEqual([null, null]);
 		// Every entry is here, so the old queue is gone.
 		expect(localStorage.getItem('voabkr_review_queue')).toBeNull();
 

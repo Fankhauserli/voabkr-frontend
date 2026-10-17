@@ -11,12 +11,13 @@ import type { ReviewSchedule } from '$lib/scheduling/reviewSchedule';
  */
 
 const DATABASE_NAME = 'voabkr-device';
-const DATABASE_VERSION = 1;
+const DATABASE_VERSION = 2;
 
 const CARDS = 'cards';
 const SCHEDULES = 'schedules';
 const HELD_DECKS = 'heldDecks';
 const QUEUED_GRADES = 'queuedGrades';
+const NEW_CARD_DAYS = 'newCardDays';
 
 /** Where the queue lived before this store existed. */
 const LEGACY_QUEUE_KEY = 'voabkr_review_queue';
@@ -36,19 +37,33 @@ export interface DownloadedDeck {
 export interface QueuedGrade {
 	/** Assigned when appended, so the queue keeps the order the Grades were given. */
 	id: number;
+	/**
+	 * The learner who gave the Grade. It survives a sign-out, so the Grade uploads
+	 * only when that learner signs back in. Null for a Grade migrated from the old
+	 * localStorage queue, which predates learner ownership.
+	 */
+	learnerId: number | null;
 	cardId: number;
 	grade: SM2Rating;
 	answeredAt: Date;
 	/**
 	 * The Review schedule the Grade produced. Null for a Grade migrated from the
-	 * old localStorage queue, which predates device-computed schedules, and for
-	 * one recorded before the Study session carries a schedule (#31).
+	 * old localStorage queue, which predates device-computed schedules.
 	 */
 	schedule: ReviewSchedule | null;
 }
 
+/** The New Cards introduced during one Day, kept so the Daily goal does not reset within it. */
+interface NewCardDayRecord {
+	/** The moment the Day began, as a timestamp; the record's key. */
+	dayStart: number;
+	/** The Cards introduced during that Day, by id. */
+	cardIds: number[];
+}
+
 /** A Grade to record, with the Review schedule it produced when one is known. */
 export interface GradeToAppend {
+	learnerId: number | null;
 	cardId: number;
 	grade: SM2Rating;
 	answeredAt: Date;
@@ -165,6 +180,7 @@ export class DeviceStore {
 		}
 		const id = (await requestResult(
 			tx.objectStore(QUEUED_GRADES).add({
+				learnerId: entry.learnerId,
 				cardId: entry.cardId,
 				grade: entry.grade,
 				answeredAt: entry.answeredAt,
@@ -182,7 +198,8 @@ export class DeviceStore {
 		const done = transactionComplete(tx);
 		const grades = (await requestResult(tx.objectStore(QUEUED_GRADES).getAll())) as QueuedGrade[];
 		await done;
-		return grades;
+		// A Grade written before learner ownership existed has no owner recorded.
+		return grades.map((grade) => ({ ...grade, learnerId: grade.learnerId ?? null }));
 	}
 
 	/** Removes Queued Grades by id, leaving every other record alone. */
@@ -193,6 +210,41 @@ export class DeviceStore {
 		for (const id of ids) {
 			store.delete(id);
 		}
+		await done;
+	}
+
+	/**
+	 * How many New Cards have been introduced in the Day that began at
+	 * `dayStart`. The count is kept per Day, so it neither carries over to a
+	 * later Day nor refreshes partway through one.
+	 */
+	async readNewCardsIntroduced(dayStart: Date): Promise<number> {
+		const tx = this.#db.transaction(NEW_CARD_DAYS, 'readonly');
+		const done = transactionComplete(tx);
+		const record = (await requestResult(tx.objectStore(NEW_CARD_DAYS).get(dayStart.getTime()))) as
+			NewCardDayRecord | undefined;
+		await done;
+		return record?.cardIds.length ?? 0;
+	}
+
+	/**
+	 * Records a New Card as introduced in the Day that began at `dayStart`.
+	 * Recording the same Card twice in one Day is a no-op, so a Card returning
+	 * from a Relearning step does not consume the allowance again.
+	 */
+	async recordNewCardIntroduced(dayStart: Date, cardId: number): Promise<void> {
+		const key = dayStart.getTime();
+		const tx = this.#db.transaction(NEW_CARD_DAYS, 'readwrite');
+		const done = transactionComplete(tx);
+		const store = tx.objectStore(NEW_CARD_DAYS);
+		const record = (await requestResult(store.get(key))) as NewCardDayRecord | undefined;
+
+		if (!record) {
+			store.add({ dayStart: key, cardIds: [cardId] });
+		} else if (!record.cardIds.includes(cardId)) {
+			store.put({ dayStart: key, cardIds: [...record.cardIds, cardId] });
+		}
+
 		await done;
 	}
 
@@ -224,6 +276,8 @@ export class DeviceStore {
 			if (seen.has(key)) continue;
 			seen.add(key);
 			grades.add({
+				// The old queue does not know which learner gave the Grade.
+				learnerId: null,
 				cardId: legacy.cardId,
 				grade: legacy.ease,
 				answeredAt: new Date(legacy.timestamp),
@@ -254,11 +308,24 @@ function openDatabase(name: string): Promise<IDBDatabase> {
 
 		request.onupgradeneeded = () => {
 			const db = request.result;
-			const cards = db.createObjectStore(CARDS, { keyPath: 'id' });
-			cards.createIndex('deckId', 'deckId');
-			db.createObjectStore(SCHEDULES, { keyPath: 'cardId' });
-			db.createObjectStore(HELD_DECKS, { keyPath: 'deckId' });
-			db.createObjectStore(QUEUED_GRADES, { keyPath: 'id', autoIncrement: true });
+			// Each store is created only if it is not already there, so an older
+			// database can be upgraded in place.
+			if (!db.objectStoreNames.contains(CARDS)) {
+				const cards = db.createObjectStore(CARDS, { keyPath: 'id' });
+				cards.createIndex('deckId', 'deckId');
+			}
+			if (!db.objectStoreNames.contains(SCHEDULES)) {
+				db.createObjectStore(SCHEDULES, { keyPath: 'cardId' });
+			}
+			if (!db.objectStoreNames.contains(HELD_DECKS)) {
+				db.createObjectStore(HELD_DECKS, { keyPath: 'deckId' });
+			}
+			if (!db.objectStoreNames.contains(QUEUED_GRADES)) {
+				db.createObjectStore(QUEUED_GRADES, { keyPath: 'id', autoIncrement: true });
+			}
+			if (!db.objectStoreNames.contains(NEW_CARD_DAYS)) {
+				db.createObjectStore(NEW_CARD_DAYS, { keyPath: 'dayStart' });
+			}
 		};
 
 		request.onsuccess = () => resolve(request.result);

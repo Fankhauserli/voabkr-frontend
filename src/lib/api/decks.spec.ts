@@ -41,6 +41,32 @@ describe('deckApi sharing and access methods', () => {
 		expect(result).toEqual({ message: 'Deck created' });
 	});
 
+	it('updates a deck with PUT /decks/:id and one visibility spelling', async () => {
+		mockFetch.mockResolvedValueOnce(
+			new Response(JSON.stringify({ message: 'Deck updated' }), {
+				status: 200,
+				headers: { 'Content-Type': 'application/json' }
+			})
+		);
+
+		const result = await deckApi.updateDeck(42, {
+			name: 'Renamed Deck',
+			type: 'grammar',
+			isPublic: true
+		});
+
+		expect(mockFetch).toHaveBeenCalledTimes(1);
+		const [url, init] = mockFetch.mock.calls[0];
+		expect(url).toContain('/decks/42');
+		expect(init.method).toBe('PUT');
+		expect(JSON.parse(init.body)).toEqual({
+			name: 'Renamed Deck',
+			type: 'grammar',
+			isPublic: true
+		});
+		expect(result).toEqual({ message: 'Deck updated' });
+	});
+
 	it('shares a deck by email and permission with POST /decks/:id/share', async () => {
 		mockFetch.mockResolvedValueOnce(
 			new Response(

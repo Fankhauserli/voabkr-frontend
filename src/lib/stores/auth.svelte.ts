@@ -1,9 +1,86 @@
 import type { UserProfile, UserSettings } from '$lib/types';
 import { authApi } from '$lib/api/auth';
+import { ApiError } from '$lib/api/client';
 import { studySession } from '$lib/stores/study.svelte';
+import { reviewSync } from '$lib/stores/syncQueue.svelte';
+
+/** Where the learner the device remembers is kept between launches. */
+export const REMEMBERED_LEARNER_KEY = 'voabkr_learner';
+
+const DEFAULT_SETTINGS: UserSettings = {
+	cardsPerDay: 20,
+	studyDirection: 'koreanToEnglish',
+	scratchPadEnabled: false
+};
+
+/** The part of the profile API the Auth store asks for. */
+export interface AuthProfileApi {
+	getProfile(silent?: boolean): Promise<UserProfile>;
+	getSettings(silent?: boolean): Promise<UserSettings>;
+}
+
+/** The persistent storage the remembered learner is written to. */
+export interface AuthStorage {
+	getItem(key: string): string | null;
+	setItem(key: string, value: string): void;
+	removeItem(key: string): void;
+}
+
+/** What the device remembers about the last learner it signed in. */
+interface RememberedLearner {
+	user: UserProfile;
+	settings: UserSettings | null;
+}
+
+export interface AuthStoreOptions {
+	api?: AuthProfileApi;
+	storage?: AuthStorage | null;
+	/**
+	 * Told which learner is signed in, so the Grade queue records Grades under the
+	 * right learner. `sessionConfirmed` is false while the learner is only
+	 * remembered from the last launch: their Grades must not upload until the
+	 * backend has confirmed that this session really is theirs.
+	 */
+	onLearnerChange?: (learnerId: number | null, sessionConfirmed: boolean) => void;
+}
+
+function browserStorage(): AuthStorage | null {
+	try {
+		if (typeof window !== 'undefined' && window.localStorage) {
+			return window.localStorage;
+		}
+	} catch {
+		// Storage can be unavailable, for example when the browser blocks it.
+	}
+	return null;
+}
+
+/** A real 401 is the only answer that means the session was revoked. */
+function isUnauthorized(error: unknown): boolean {
+	return error instanceof ApiError && error.status === 401;
+}
+
+function isUserProfile(value: unknown): value is UserProfile {
+	if (typeof value !== 'object' || value === null) return false;
+	const candidate = value as Partial<UserProfile>;
+	return (
+		typeof candidate.id === 'number' &&
+		typeof candidate.name === 'string' &&
+		typeof candidate.email === 'string'
+	);
+}
+
+function isUserSettings(value: unknown): value is UserSettings {
+	if (typeof value !== 'object' || value === null) return false;
+	return typeof (value as Partial<UserSettings>).cardsPerDay === 'number';
+}
 
 /**
  * Svelte 5 Auth Store using pure runes ($state, $derived).
+ *
+ * The device remembers the last learner it signed in, so opening the app with no
+ * connection still leaves the learner signed in. Only a real 401 from the backend
+ * signs them out; a failed request is not a revoked session.
  */
 class AuthStore {
 	user = $state<UserProfile | null>(null);
@@ -19,31 +96,65 @@ class AuthStore {
 	userEmail = $derived(this.user?.email ?? '');
 	cardsPerDay = $derived(this.settings?.cardsPerDay ?? 20);
 
+	readonly #api: AuthProfileApi;
+	readonly #storage: AuthStorage | null;
+	readonly #onLearnerChange: (learnerId: number | null, sessionConfirmed: boolean) => void;
+
+	constructor(options: AuthStoreOptions = {}) {
+		this.#api = options.api ?? authApi;
+		this.#storage = options.storage === undefined ? browserStorage() : options.storage;
+		this.#onLearnerChange = options.onLearnerChange ?? (() => {});
+		this.#restore();
+	}
+
 	async fetchUser(): Promise<void> {
 		this.isLoading = true;
 		this.error = null;
+
+		let profile: UserProfile;
 		try {
-			const profile = await authApi.getProfile();
-			this.user = profile;
-			try {
-				const settings = await authApi.getSettings();
-				this.settings = settings;
-				if (settings.studyDirection) {
-					studySession.setStudyDirection(settings.studyDirection, false);
-				}
-				if (typeof settings.scratchPadEnabled === 'boolean') {
-					studySession.setScratchPadEnabled(settings.scratchPadEnabled, false);
-				}
-			} catch {
-				this.settings = {
-					cardsPerDay: 20,
-					studyDirection: 'koreanToEnglish',
-					scratchPadEnabled: false
-				};
+			profile = await this.#api.getProfile();
+		} catch (error) {
+			// A network failure is not a revoked session: the remembered learner stays
+			// signed in. Only a 401 from the backend signs them out.
+			if (isUnauthorized(error)) {
+				this.logout();
 			}
-		} catch {
-			this.user = null;
+			this.isLoading = false;
+			this.isInitialized = true;
+			return;
+		}
+
+		// The remembered settings belong to the learner they were saved with. If a
+		// different learner is now confirmed, do not carry them across.
+		if (this.user !== null && this.user.id !== profile.id) {
 			this.settings = null;
+		}
+		this.user = profile;
+		this.#remember();
+		// The backend confirmed this session belongs to this learner, so their
+		// Queued Grades may now upload.
+		this.#onLearnerChange(profile.id, true);
+
+		try {
+			const settings = await this.#api.getSettings();
+			this.settings = settings;
+			this.#remember();
+			if (settings.studyDirection) {
+				studySession.setStudyDirection(settings.studyDirection, false);
+			}
+			if (typeof settings.scratchPadEnabled === 'boolean') {
+				studySession.setScratchPadEnabled(settings.scratchPadEnabled, false);
+			}
+		} catch (error) {
+			if (isUnauthorized(error)) {
+				this.logout();
+				return;
+			}
+			// Keep the settings remembered from the last launch when the backend
+			// cannot be reached; fall back to the defaults on a first launch.
+			this.settings ??= { ...DEFAULT_SETTINGS };
+			this.#remember();
 		} finally {
 			this.isLoading = false;
 			this.isInitialized = true;
@@ -55,29 +166,34 @@ class AuthStore {
 		this.error = null;
 		this.isLoading = false;
 		this.isInitialized = true;
+		if (user) {
+			this.#remember();
+			this.#onLearnerChange(user.id, true);
+		} else {
+			this.#forget();
+			this.#onLearnerChange(null, false);
+		}
 	}
 
 	updateProfile(data: Partial<UserProfile>) {
 		if (this.user) {
 			this.user = { ...this.user, ...data };
+			this.#remember();
 		}
 	}
 
 	setSettings(settings: UserSettings | null) {
 		this.settings = settings;
+		this.#remember();
 	}
 
 	updateSettings(partial: Partial<UserSettings>) {
 		if (this.settings) {
 			this.settings = { ...this.settings, ...partial };
 		} else {
-			this.settings = {
-				cardsPerDay: 20,
-				studyDirection: 'koreanToEnglish',
-				scratchPadEnabled: false,
-				...partial
-			};
+			this.settings = { ...DEFAULT_SETTINGS, ...partial };
 		}
+		this.#remember();
 	}
 
 	updateCardsPerDay(cardsPerDay: number) {
@@ -87,6 +203,7 @@ class AuthStore {
 	setVerified(verified: boolean) {
 		if (this.user) {
 			this.user.isVerified = verified;
+			this.#remember();
 		}
 	}
 
@@ -99,14 +216,69 @@ class AuthStore {
 		this.isLoading = false;
 	}
 
+	/** Signs the learner out on this device. Queued Grades are the queue's, not ours. */
 	logout() {
 		this.user = null;
 		this.settings = null;
 		this.error = null;
 		this.isLoading = false;
 		this.isInitialized = true;
+		this.#forget();
+		this.#onLearnerChange(null, false);
+	}
+
+	/** Restores the learner from the last launch, before any request is made. */
+	#restore(): void {
+		const raw = this.#read();
+		if (raw === null) return;
+
+		try {
+			const remembered = JSON.parse(raw) as Partial<RememberedLearner>;
+			if (!isUserProfile(remembered.user)) {
+				this.#forget();
+				return;
+			}
+			this.user = remembered.user;
+			this.settings = isUserSettings(remembered.settings) ? remembered.settings : null;
+			// The queue must know the learner even while the profile request is
+			// still in flight, so a Grade given in the meantime is owned correctly.
+			// It may not upload anything until a profile request confirms the
+			// session really belongs to them.
+			this.#onLearnerChange(remembered.user.id, false);
+		} catch {
+			this.#forget();
+		}
+	}
+
+	#read(): string | null {
+		try {
+			return this.#storage?.getItem(REMEMBERED_LEARNER_KEY) ?? null;
+		} catch {
+			return null;
+		}
+	}
+
+	#remember(): void {
+		if (!this.user) return;
+		try {
+			const remembered: RememberedLearner = { user: this.user, settings: this.settings };
+			this.#storage?.setItem(REMEMBERED_LEARNER_KEY, JSON.stringify(remembered));
+		} catch {
+			// A device that refuses storage still works for this launch.
+		}
+	}
+
+	#forget(): void {
+		try {
+			this.#storage?.removeItem(REMEMBERED_LEARNER_KEY);
+		} catch {
+			// Nothing more can be done if the device refuses storage.
+		}
 	}
 }
 
-export const auth = new AuthStore();
+export const auth = new AuthStore({
+	onLearnerChange: (learnerId, sessionConfirmed) =>
+		reviewSync.setLearner(learnerId, sessionConfirmed)
+});
 export { AuthStore };

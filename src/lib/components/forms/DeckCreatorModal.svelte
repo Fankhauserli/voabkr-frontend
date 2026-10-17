@@ -31,7 +31,7 @@
 				const deck = modal.deckCreatorData.deckToEdit;
 				name = deck.name;
 				type = deck.type;
-				isPublic = deck.isPublic ?? deck.is_public ?? false;
+				isPublic = deck.isPublic ?? false;
 			} else {
 				name = '';
 				type = 'vocabulary';
@@ -51,21 +51,12 @@
 		isSaving = true;
 		error = null;
 		try {
+			const payload = { name: name.trim(), type, isPublic };
 			if (modal.deckCreatorData?.deckToEdit) {
-				await deckApi.updateDeck(modal.deckCreatorData.deckToEdit.id, {
-					name: name.trim(),
-					type,
-					isPublic,
-					is_public: isPublic
-				});
+				await deckApi.updateDeck(modal.deckCreatorData.deckToEdit.id, payload);
 				toast.success('Deck updated successfully');
 			} else {
-				await deckApi.createDeck({
-					name: name.trim(),
-					type,
-					isPublic,
-					is_public: isPublic
-				});
+				await deckApi.createDeck(payload);
 				toast.success('Deck created successfully');
 			}
 			modal.close();

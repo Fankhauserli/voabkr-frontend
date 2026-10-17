@@ -97,6 +97,33 @@ Every push to `main` and every pushed version tag publishes two GitHub Releases:
 
 The APK is signed with the repository's permanent release keystore, and the workflow verifies the signer certificate before publishing. A `-pre` version is marked a pre-release; a final version can take the repository's Latest slot.
 
+For how a tester installs a published build, see [Install on Android](#install-on-android).
+
+### Signing secrets
+
+Release builds are signed with the permanent release keystore, which the workflow materialises from four repository secrets:
+
+- `ANDROID_KEYSTORE_BASE64` — the keystore file, base64-encoded.
+- `ANDROID_KEYSTORE_PASSWORD` — the keystore password.
+- `ANDROID_KEY_ALIAS` — the alias of the signing key.
+- `ANDROID_KEY_PASSWORD` — the signing key's password.
+
+A push to `main` or a version tag with any of these missing fails before the APK is assembled. A pull request from a fork cannot read repository secrets: its run warns, falls back to debug signing, and publishes no release. The workflow writes the keystore and its properties file to `android/keystore.jks` and `android/keystore.properties` (both git-ignored) for the build; only files from `artifacts/` are uploaded.
+
+### Losing or rotating the keystore
+
+The release keystore is the app's permanent identity. Android installs a newer APK over an installed app only when both are signed by the same certificate and the `versionCode` is at least as high, so the keystore is what makes an in-place update possible at all, while the version orders builds. Keep a copy of the keystore and the values behind all four secrets somewhere durable outside the repository: the repository secrets are the copy CI uses, not a backup.
+
+If the keystore or any of its credentials is lost, or the key must be rotated deliberately:
+
+1. Create a replacement keystore with `keytool -genkeypair` (or your usual tooling), with a validity long enough to outlive the app. Keep its password, alias, and key password with it.
+2. Replace all four repository secrets with the new keystore's values. Base64-encode the keystore for `ANDROID_KEYSTORE_BASE64`.
+3. Publish a release. The workflow signs with the new key and verifies the APK's certificate against it. From that run, `latest` serves a new-key APK; earlier versioned releases remain old-key.
+4. Uninstall the app on every device before installing the new APK. Uninstalling deletes the app's local data, including Downloaded Decks and Queued Grades that have not synced. A newer release still carries a higher `versionCode`; the signature mismatch, not the version, is what blocks the upgrade.
+5. Install an old versioned release only over a fresh installation. Moving between the old and new identities always requires an uninstall, in either direction.
+
+Warn testers before rotating so they can Sync first; Grades the backend has already accepted survive the uninstall, but local data that never reached it does not. There is no recovery procedure that preserves an installed app: a lost key cannot be regenerated, and a replacement is a different identity.
+
 ## Documentation
 
 - [Frontend specification](FRONTEND_SPEC.md)

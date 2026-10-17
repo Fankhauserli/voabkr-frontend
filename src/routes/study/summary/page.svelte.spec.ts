@@ -7,7 +7,6 @@ import { render } from 'vitest-browser-svelte';
 import { goto } from '$app/navigation';
 import SummaryPage from './+page.svelte';
 import { studySession } from '$lib/stores/study.svelte';
-import type { Card } from '$lib/types';
 
 vi.mock('$app/navigation', () => ({ goto: vi.fn() }));
 // The page drives the real Study session singleton, whose Grades would otherwise be sent
@@ -15,25 +14,41 @@ vi.mock('$app/navigation', () => ({ goto: vi.fn() }));
 vi.mock('$lib/stores/syncQueue.svelte', () => ({
 	reviewSync: { addReview: vi.fn(async () => ({ synced: true })) }
 }));
+// The Study session assembles its queue from the device. A stand-in holds one Deck
+// of three New Cards, so the page's scenario does not need IndexedDB.
+vi.mock('$lib/study/deviceSource', () => ({
+	deviceStudySource: {
+		readDecks: async (deckId?: number) =>
+			deckId === undefined || deckId === 10
+				? [
+						{
+							deckId: 10,
+							cards: Array.from({ length: 3 }, (_, i) => ({
+								id: i + 1,
+								deckId: 10,
+								koreanWord: `단어 ${i + 1}`,
+								englishWord: `Word ${i + 1}`,
+								context: 'noun',
+								example: `예문 ${i + 1}`
+							})),
+							schedules: new Map()
+						}
+					]
+				: [],
+		readNewCardsIntroduced: async () => 0,
+		recordNewCardIntroduced: async () => {},
+		writeSchedule: async () => {}
+	}
+}));
 
 beforeEach(() => {
 	vi.mocked(goto).mockClear();
 });
 
-const createMockCards = (count: number): Card[] =>
-	Array.from({ length: count }, (_, i) => ({
-		id: i + 1,
-		deckId: 10,
-		koreanWord: `단어 ${i + 1}`,
-		englishWord: `Word ${i + 1}`,
-		context: 'noun',
-		example: `예문 ${i + 1}`
-	}));
-
-/** Finishes a Study session of `count` Cards, failing the first one. */
-const finishSession = async (count: number) => {
+/** Finishes the three-Card Study session the device stand-in holds, failing the first one. */
+const finishSession = async () => {
 	studySession.reset();
-	await studySession.startDeckSession(createMockCards(count), 10, count);
+	await studySession.startDeckSession(10);
 	await studySession.rateCurrentCard(1); // Card 1 Again: it returns from a Relearning step
 	let grades = 0;
 	while (!studySession.isSessionFinished) {
@@ -54,7 +69,7 @@ test('sends the learner away without showing a Study session that never happened
 });
 
 test('shows the finished Study session’s real numbers', async () => {
-	await finishSession(3); // 3 Cards, Card 1 failed then answered again: 2 of 3 retained
+	await finishSession(); // 3 Cards, Card 1 failed then answered again: 2 of 3 retained
 
 	const screen = render(SummaryPage);
 
