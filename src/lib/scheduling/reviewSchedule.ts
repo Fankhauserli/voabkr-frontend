@@ -30,6 +30,19 @@ export interface ReviewSchedule {
 /** The Efactor never falls below this floor. */
 const EFACTOR_FLOOR = 1.3;
 
+/**
+ * The Review schedule a New Card carries before its first Grade: nothing
+ * answered, and the Efactor at its starting value.
+ */
+export function newCardSchedule(answeredAt: Date): ReviewSchedule {
+	return {
+		interval: 0,
+		efactor: 2.5,
+		repetitions: 0,
+		nextReviewAt: answeredAt
+	};
+}
+
 /** Turns a Review schedule into the one that follows a Grade. */
 export function nextReviewSchedule(
 	schedule: ReviewSchedule,

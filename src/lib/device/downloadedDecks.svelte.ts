@@ -50,6 +50,16 @@ export class DownloadedDecks {
 	}
 
 	/**
+	 * Stops treating a Deck as held after something else has already released it
+	 * from the store — Sync does this when a pull no longer returns the Deck. No
+	 * store write happens here, so the app's view catches up without a second
+	 * release or a reload.
+	 */
+	public forget(deckId: number): void {
+		this.#held.delete(deckId);
+	}
+
+	/**
 	 * Holds every Card of a Deck and the Review schedule each Card carries, then
 	 * marks the Deck held. It is called when the Deck is first studied.
 	 */

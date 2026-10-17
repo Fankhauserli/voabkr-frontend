@@ -1,4 +1,4 @@
-import type { Card, QueuedReview, SM2Rating } from '$lib/types';
+import type { Card, Deck, QueuedReview, SM2Rating } from '$lib/types';
 import type { ReviewSchedule } from '$lib/scheduling/reviewSchedule';
 
 /**
@@ -11,13 +11,16 @@ import type { ReviewSchedule } from '$lib/scheduling/reviewSchedule';
  */
 
 const DATABASE_NAME = 'voabkr-device';
-const DATABASE_VERSION = 2;
+// Version 2 added both newCardDays (#31) and library (#30); version 3 ensures a
+// database already opened at 2 by either change gains the other store.
+const DATABASE_VERSION = 3;
 
 const CARDS = 'cards';
 const SCHEDULES = 'schedules';
 const HELD_DECKS = 'heldDecks';
 const QUEUED_GRADES = 'queuedGrades';
 const NEW_CARD_DAYS = 'newCardDays';
+const LIBRARY = 'library';
 
 /** Where the queue lived before this store existed. */
 const LEGACY_QUEUE_KEY = 'voabkr_review_queue';
@@ -51,6 +54,11 @@ export interface QueuedGrade {
 	 * old localStorage queue, which predates device-computed schedules.
 	 */
 	schedule: ReviewSchedule | null;
+	/**
+	 * Whether the backend refused this Grade. A parked Grade leaves the active
+	 * queue but stays on the device and is offered again on later Syncs.
+	 */
+	parked?: boolean;
 }
 
 /** The New Cards introduced during one Day, kept so the Daily goal does not reset within it. */
@@ -104,6 +112,23 @@ export class DeviceStore {
 		const done = transactionComplete(tx);
 		tx.objectStore(SCHEDULES).put(storedSchedule(cardId, schedule));
 		await done;
+	}
+
+	/** Reads the Review schedule a Card carries, or null for a New Card. */
+	async readSchedule(cardId: number): Promise<ReviewSchedule | null> {
+		const tx = this.#db.transaction(SCHEDULES, 'readonly');
+		const done = transactionComplete(tx);
+		const stored = await requestResult<StoredSchedule | undefined>(
+			tx.objectStore(SCHEDULES).get(cardId)
+		);
+		await done;
+		if (!stored) return null;
+		return {
+			interval: stored.interval,
+			efactor: stored.efactor,
+			repetitions: stored.repetitions,
+			nextReviewAt: stored.nextReviewAt
+		};
 	}
 
 	/** Reads a Deck's Cards and their Review schedules without a network. */
@@ -163,6 +188,61 @@ export class DeviceStore {
 			scheduleStore.delete(card.id);
 		}
 		tx.objectStore(HELD_DECKS).delete(deckId);
+		await done;
+	}
+
+	/**
+	 * Replaces one Downloaded Deck's Cards and Review schedules wholesale with
+	 * what a pull returned. Cards and schedules the pull no longer carries are
+	 * removed, so an edited Card is refetched, a deleted one disappears, and a
+	 * schedule is never a merge of what the device and the backend each believed.
+	 */
+	async replaceDeck(deckId: number, contents: DownloadedDeck): Promise<void> {
+		const tx = this.#db.transaction([CARDS, SCHEDULES], 'readwrite');
+		const done = transactionComplete(tx);
+		const cardStore = tx.objectStore(CARDS);
+		const scheduleStore = tx.objectStore(SCHEDULES);
+
+		const existing = await cardsOfDeck(tx, deckId);
+		const nextCardIds = new Set(contents.cards.map((card) => card.id));
+		for (const card of existing) {
+			if (!nextCardIds.has(card.id)) {
+				cardStore.delete(card.id);
+				scheduleStore.delete(card.id);
+			}
+		}
+
+		for (const card of contents.cards) {
+			cardStore.put(card);
+			const schedule = contents.schedules.get(card.id);
+			if (schedule) {
+				scheduleStore.put(storedSchedule(card.id, schedule));
+			} else {
+				scheduleStore.delete(card.id);
+			}
+		}
+
+		await done;
+	}
+
+	/** The Library list last pulled from the backend, in Deck id order. */
+	async readLibrary(): Promise<Deck[]> {
+		const tx = this.#db.transaction(LIBRARY, 'readonly');
+		const done = transactionComplete(tx);
+		const decks = (await requestResult(tx.objectStore(LIBRARY).getAll())) as Deck[];
+		await done;
+		return decks;
+	}
+
+	/** Replaces the Library list wholesale with what a pull returned. */
+	async replaceLibrary(decks: readonly Deck[]): Promise<void> {
+		const tx = this.#db.transaction(LIBRARY, 'readwrite');
+		const done = transactionComplete(tx);
+		const store = tx.objectStore(LIBRARY);
+		store.clear();
+		for (const deck of decks) {
+			store.put(deck);
+		}
 		await done;
 	}
 
@@ -249,6 +329,26 @@ export class DeviceStore {
 	}
 
 	/**
+	 * Parks Queued Grades the backend refused. A parked Grade stays on the device
+	 * — and is offered again on later Syncs — but is no longer part of the active
+	 * queue, so it cannot hold up a Grade behind it.
+	 */
+	async parkQueuedGrades(ids: readonly number[]): Promise<void> {
+		if (ids.length === 0) return;
+		const grades = await this.readQueuedGrades();
+		const toPark = new Set(ids);
+		const tx = this.#db.transaction(QUEUED_GRADES, 'readwrite');
+		const done = transactionComplete(tx);
+		const store = tx.objectStore(QUEUED_GRADES);
+		for (const grade of grades) {
+			if (toPark.has(grade.id)) {
+				store.put({ ...grade, parked: true });
+			}
+		}
+		await done;
+	}
+
+	/**
 	 * Copies the Grades the old localStorage queue holds into this store. It runs
 	 * on every open and skips entries already held, so a Grade queued into the
 	 * old key before this store was wired in cannot be stranded. The old key is
@@ -325,6 +425,9 @@ function openDatabase(name: string): Promise<IDBDatabase> {
 			}
 			if (!db.objectStoreNames.contains(NEW_CARD_DAYS)) {
 				db.createObjectStore(NEW_CARD_DAYS, { keyPath: 'dayStart' });
+			}
+			if (!db.objectStoreNames.contains(LIBRARY)) {
+				db.createObjectStore(LIBRARY, { keyPath: 'id' });
 			}
 		};
 
