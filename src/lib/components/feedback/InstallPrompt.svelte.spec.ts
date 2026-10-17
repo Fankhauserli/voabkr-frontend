@@ -4,9 +4,11 @@ import type { AppMode } from '$lib/pwa/appMode';
 import { INSTALL_PROMPT_DISMISSED_KEY } from '$lib/pwa/installPrompt';
 import InstallPrompt from './InstallPrompt.svelte';
 
-const inMode = (mode: AppMode) => () => mode;
+const alwaysIn = (mode: AppMode) => () => mode;
 
 const isShown = () => document.querySelector('[role="dialog"]') !== null;
+
+const expectNotShown = () => vi.waitFor(() => expect(isShown()).toBe(false));
 
 describe('InstallPrompt', () => {
 	beforeEach(() => {
@@ -14,7 +16,7 @@ describe('InstallPrompt', () => {
 	});
 
 	it('tells a learner in a browser tab that offline study needs the app on their home screen', async () => {
-		const screen = render(InstallPrompt, { detectMode: inMode('browser') });
+		const screen = render(InstallPrompt, { detectMode: alwaysIn('browser') });
 
 		await expect.element(screen.getByRole('dialog')).toBeVisible();
 		expect(screen.container.textContent).toMatch(/offline study/i);
@@ -22,36 +24,36 @@ describe('InstallPrompt', () => {
 	});
 
 	it('does not show in the native shell', async () => {
-		render(InstallPrompt, { detectMode: inMode('native') });
+		render(InstallPrompt, { detectMode: alwaysIn('native') });
 
-		await vi.waitFor(() => expect(isShown()).toBe(false));
+		await expectNotShown();
 	});
 
 	it('does not show in an installed PWA', async () => {
-		render(InstallPrompt, { detectMode: inMode('installed') });
+		render(InstallPrompt, { detectMode: alwaysIn('installed') });
 
-		await vi.waitFor(() => expect(isShown()).toBe(false));
+		await expectNotShown();
 	});
 
 	it('stays dismissed after the learner dismisses it', async () => {
-		const first = render(InstallPrompt, { detectMode: inMode('browser') });
+		const first = render(InstallPrompt, { detectMode: alwaysIn('browser') });
 		await expect.element(first.getByRole('dialog')).toBeVisible();
 
 		await first.getByRole('button', { name: /got it/i }).click();
-		await vi.waitFor(() => expect(isShown()).toBe(false));
+		await expectNotShown();
 		expect(localStorage.getItem(INSTALL_PROMPT_DISMISSED_KEY)).toBe('true');
 
 		await first.unmount();
-		render(InstallPrompt, { detectMode: inMode('browser') });
+		render(InstallPrompt, { detectMode: alwaysIn('browser') });
 
-		await vi.waitFor(() => expect(isShown()).toBe(false));
+		await expectNotShown();
 	});
 
 	it('does not show when it was dismissed on an earlier visit', async () => {
 		localStorage.setItem(INSTALL_PROMPT_DISMISSED_KEY, 'true');
 
-		render(InstallPrompt, { detectMode: inMode('browser') });
+		render(InstallPrompt, { detectMode: alwaysIn('browser') });
 
-		await vi.waitFor(() => expect(isShown()).toBe(false));
+		await expectNotShown();
 	});
 });

@@ -4,18 +4,16 @@
 	import {
 		browserStorage,
 		dismissInstallPrompt,
-		isInstallPromptDismissed,
-		type PromptStorage
+		isInstallPromptDismissed
 	} from '$lib/pwa/installPrompt';
 
 	interface Props {
 		/** App mode detection; injectable so tests need no real display mode. */
 		detectMode?: () => AppMode;
-		/** Where the dismissal is remembered; defaults to localStorage. */
-		storage?: PromptStorage | null;
 	}
 
-	let { detectMode = detectAppMode, storage = browserStorage() }: Props = $props();
+	let { detectMode = detectAppMode }: Props = $props();
+	const storage = browserStorage();
 
 	let isVisible = $state(false);
 

@@ -155,7 +155,7 @@
 				</li>
 				<li>
 					<strong class="text-ink-primary">Browser LocalStorage & IndexedDB</strong>: Used to keep
-					flashcard ratings and study data on your device so they can sync with your account when a
+					your Grades and study data on your device so they can sync with your account when a
 					connection is available.
 				</li>
 			</ul>

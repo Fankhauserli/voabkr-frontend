@@ -73,7 +73,9 @@
 	</main>
 
 	<!-- Global Overlays & Modals -->
-	<InstallPrompt />
+	{#if !isStudyRoute}
+		<InstallPrompt />
+	{/if}
 	<Toast />
 	<ExitStudyModal />
 </div>
