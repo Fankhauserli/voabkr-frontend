@@ -154,9 +154,9 @@
 					cross-site scripting and request forgery.
 				</li>
 				<li>
-					<strong class="text-ink-primary">Browser LocalStorage</strong>: Used to temporarily buffer
-					offline flashcard ratings so your study session continues uninterrupted if your network
-					connection drops.
+					<strong class="text-ink-primary">Browser LocalStorage & IndexedDB</strong>: Used to keep
+					your Grades and study data on your device so they can sync with your account when a
+					connection is available.
 				</li>
 			</ul>
 			<p class="mt-2 text-xs text-ink-muted">

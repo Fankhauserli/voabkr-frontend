@@ -374,7 +374,7 @@
 			</div>
 		</section>
 
-		<!-- 3. App Appearance & Offline Data -->
+		<!-- 3. App Appearance & Local Data -->
 		<section class="rounded-2xl border border-border-subtle bg-surface p-4 shadow-xs">
 			<h2 class="text-xs font-bold tracking-wider text-ink-muted uppercase">Display & Storage</h2>
 
@@ -408,7 +408,7 @@
 
 				<div class="flex items-center justify-between border-t border-border-subtle pt-3">
 					<div>
-						<span class="text-xs font-bold text-ink-primary">Offline Study Data</span>
+						<span class="text-xs font-bold text-ink-primary">Study Data on This Device</span>
 						<p class="text-[11px] text-ink-secondary">
 							{reviewSync.pendingCount === 0
 								? 'All reviews synced'

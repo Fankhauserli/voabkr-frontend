@@ -2,6 +2,8 @@ import { test, expect, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import FlashCard from './FlashCard.svelte';
 
+// `context` collides with Svelte's mount option of the same name, so the props
+// must be nested under `props` rather than passed flat.
 test('renders Korean word and reveals English meaning when flipped (koreanToEnglish)', async () => {
 	const onFlip = vi.fn();
 	const screen = await render(FlashCard, {

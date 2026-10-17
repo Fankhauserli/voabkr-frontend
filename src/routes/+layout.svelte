@@ -8,6 +8,7 @@
 	import { initializeBackButton } from '$lib/utils/backButton';
 	import { initializeStatusBar } from '$lib/utils/statusBar';
 	import Toast from '$lib/components/feedback/Toast.svelte';
+	import InstallPrompt from '$lib/components/feedback/InstallPrompt.svelte';
 	import ExitStudyModal from '$lib/components/study/ExitStudyModal.svelte';
 	import SEO from '$lib/components/seo/SEO.svelte';
 
@@ -72,6 +73,9 @@
 	</main>
 
 	<!-- Global Overlays & Modals -->
+	{#if !isStudyRoute}
+		<InstallPrompt />
+	{/if}
 	<Toast />
 	<ExitStudyModal />
 </div>
