@@ -103,7 +103,7 @@
 
 	function handleClearCache() {
 		selectionClick();
-		reviewSync.clear();
+		void reviewSync.clear();
 		clientCache.clear();
 		toast.info('Local card & deck cache cleared');
 	}
@@ -162,7 +162,7 @@
 		try {
 			await authApi.deleteAccount();
 			clientCache.clear();
-			reviewSync.clear();
+			void reviewSync.clear();
 			auth.logout();
 			showDeleteModal = false;
 			toast.info('Your account and personal data have been completely deleted.');

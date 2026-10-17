@@ -10,3 +10,4 @@ bun.lockb
 ios/
 android/
 /build/
+/.claude/

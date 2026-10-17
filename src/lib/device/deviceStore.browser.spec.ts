@@ -1,0 +1,182 @@
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import type { Card } from '$lib/types';
+import type { ReviewSchedule } from '$lib/scheduling/reviewSchedule';
+import { DeviceStore } from './deviceStore';
+
+/** A Card belonging to a Deck. */
+const card = (id: number, deckId: number): Card => ({
+	id,
+	deckId,
+	koreanWord: `단어 ${id}`,
+	englishWord: `Word ${id}`,
+	context: '',
+	example: ''
+});
+
+/** A Review schedule whose next Due moment is the given October day. */
+const schedule = (day: number): ReviewSchedule => ({
+	interval: 6,
+	efactor: 2.5,
+	repetitions: 2,
+	nextReviewAt: new Date(2026, 9, day, 9, 0)
+});
+
+/** Deletes a test database once the store has closed it. */
+const deleteDatabase = (name: string): Promise<void> =>
+	new Promise((resolve, reject) => {
+		const request = indexedDB.deleteDatabase(name);
+		request.onsuccess = () => resolve();
+		request.onerror = () => reject(request.error);
+		request.onblocked = () => reject(new Error(`Deleting ${name} was blocked`));
+	});
+
+describe('DeviceStore', () => {
+	let name: string;
+	let store: DeviceStore;
+
+	beforeEach(async () => {
+		localStorage.clear();
+		name = `voabkr-device-test-${crypto.randomUUID()}`;
+		store = await DeviceStore.open(name);
+	});
+
+	afterEach(async () => {
+		store.close();
+		await deleteDatabase(name);
+		localStorage.clear();
+	});
+
+	it("keeps a Deck's Cards and their Review schedules across a reload", async () => {
+		const cards = [card(1, 10), card(2, 10)];
+		await store.saveCards(cards);
+		await store.writeSchedule(1, schedule(23));
+
+		store.close();
+		store = await DeviceStore.open(name);
+
+		const contents = await store.readDeck(10);
+
+		expect(contents.cards).toEqual(cards);
+		expect(contents.schedules.get(1)).toEqual(schedule(23));
+		expect(contents.schedules.has(2)).toBe(false);
+	});
+
+	it('lists the Decks held on the device, and releasing one removes only its Cards and schedules', async () => {
+		await store.saveCards([card(1, 10), card(2, 10), card(3, 20)]);
+		await store.writeSchedule(1, schedule(23));
+		await store.writeSchedule(3, schedule(24));
+		await store.holdDeck(10);
+		await store.holdDeck(20);
+		const queued = await store.appendQueuedGrade({
+			cardId: 1,
+			grade: 3,
+			answeredAt: new Date(2026, 9, 17, 9, 0),
+			schedule: schedule(23)
+		});
+
+		expect(await store.listHeldDecks()).toEqual([10, 20]);
+
+		await store.releaseDeck(10);
+
+		expect(await store.listHeldDecks()).toEqual([20]);
+		expect(await store.readDeck(10)).toEqual({ cards: [], schedules: new Map() });
+		expect(await store.readDeck(20)).toEqual({
+			cards: [card(3, 20)],
+			schedules: new Map([[3, schedule(24)]])
+		});
+		expect(await store.readQueuedGrades()).toEqual([queued]);
+
+		// The held Decks and the Grade queue also survive a reload.
+		store.close();
+		store = await DeviceStore.open(name);
+		expect(await store.listHeldDecks()).toEqual([20]);
+		expect(await store.readQueuedGrades()).toEqual([queued]);
+	});
+
+	it('writes a Grade and the Review schedule it produced together, in the order given', async () => {
+		await store.saveCards([card(1, 10)]);
+		const firstAnsweredAt = new Date(2026, 9, 17, 9, 0);
+		const secondAnsweredAt = new Date(2026, 9, 17, 9, 10);
+
+		const first = await store.appendQueuedGrade({
+			cardId: 1,
+			grade: 3,
+			answeredAt: firstAnsweredAt,
+			schedule: schedule(23)
+		});
+		const second = await store.appendQueuedGrade({
+			cardId: 1,
+			grade: 1,
+			answeredAt: secondAnsweredAt,
+			schedule: schedule(18)
+		});
+
+		expect(first.id).toBeLessThan(second.id);
+		expect(await store.readQueuedGrades()).toEqual([
+			{ id: first.id, cardId: 1, grade: 3, answeredAt: firstAnsweredAt, schedule: schedule(23) },
+			{ id: second.id, cardId: 1, grade: 1, answeredAt: secondAnsweredAt, schedule: schedule(18) }
+		]);
+		// The second Grade's schedule is the one the Card now carries.
+		expect((await store.readDeck(10)).schedules.get(1)).toEqual(schedule(18));
+
+		await store.removeQueuedGrades([first.id]);
+
+		expect(await store.readQueuedGrades()).toEqual([
+			{ id: second.id, cardId: 1, grade: 1, answeredAt: secondAnsweredAt, schedule: schedule(18) }
+		]);
+	});
+
+	it('moves the old localStorage queue into the store, without losing a Grade', async () => {
+		store.close();
+		await deleteDatabase(name);
+		const firstAnsweredAt = Date.UTC(2026, 9, 17, 9, 0);
+		const secondAnsweredAt = Date.UTC(2026, 9, 17, 9, 5);
+		localStorage.setItem(
+			'voabkr_review_queue',
+			JSON.stringify([
+				{ cardId: 42, ease: 3, timestamp: firstAnsweredAt },
+				{ cardId: 43, ease: 1, timestamp: secondAnsweredAt }
+			])
+		);
+
+		store = await DeviceStore.open(name);
+		const migrated = await store.readQueuedGrades();
+
+		expect(migrated.map((grade) => grade.cardId)).toEqual([42, 43]);
+		expect(migrated.map((grade) => grade.grade)).toEqual([3, 1]);
+		expect(migrated.map((grade) => grade.answeredAt)).toEqual([
+			new Date(firstAnsweredAt),
+			new Date(secondAnsweredAt)
+		]);
+		expect(migrated.map((grade) => grade.schedule)).toEqual([null, null]);
+		// Every entry is here, so the old queue is gone.
+		expect(localStorage.getItem('voabkr_review_queue')).toBeNull();
+
+		// Reopening finds nothing left to migrate and adds no duplicates.
+		store.close();
+		store = await DeviceStore.open(name);
+		expect(await store.readQueuedGrades()).toHaveLength(2);
+	});
+
+	it('leaves a malformed legacy queue in place while migrating its valid Grades', async () => {
+		store.close();
+		await deleteDatabase(name);
+		localStorage.setItem(
+			'voabkr_review_queue',
+			JSON.stringify([
+				{ cardId: 7, ease: 2, timestamp: Date.UTC(2026, 9, 17, 9, 0) },
+				{ cardId: 'not a number', ease: 2, timestamp: Date.UTC(2026, 9, 17, 9, 5) }
+			])
+		);
+
+		store = await DeviceStore.open(name);
+
+		expect(await store.readQueuedGrades()).toHaveLength(1);
+		expect(localStorage.getItem('voabkr_review_queue')).not.toBeNull();
+
+		// The malformed entry keeps the key, but the valid Grade is not duplicated.
+		store.close();
+		store = await DeviceStore.open(name);
+		expect(await store.readQueuedGrades()).toHaveLength(1);
+	});
+});
