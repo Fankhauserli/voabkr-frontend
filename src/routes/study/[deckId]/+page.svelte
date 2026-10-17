@@ -37,7 +37,6 @@
 	});
 
 	async function loadDeck() {
-		studySession.reset();
 		studySession.isLoading = true;
 		needsConnection = false;
 
@@ -61,6 +60,8 @@
 			});
 
 			if (loaded.kind === 'needs-connection') {
+				// This Deck cannot be studied now, so no sitting may remain in hand.
+				studySession.reset();
 				needsConnection = true;
 				return;
 			}
@@ -68,6 +69,7 @@
 			// The Session queue is assembled from the device's copy, online or not.
 			await studySession.start({ deckId });
 		} catch (err: unknown) {
+			studySession.reset();
 			studySession.error = err instanceof Error ? err.message : 'Failed to load deck cards';
 		} finally {
 			studySession.isLoading = false;

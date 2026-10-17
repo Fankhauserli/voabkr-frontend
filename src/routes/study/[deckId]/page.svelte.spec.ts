@@ -154,3 +154,52 @@ test('reports an online Deck that fails to load instead of claiming it needs a c
 	expect(screen.getByText('This Deck needs a connection').elements()).toHaveLength(0);
 	expect(downloadedDecks.download).not.toHaveBeenCalled();
 });
+
+test('resumes the sitting in hand when the same Deck route mounts again', async () => {
+	vi.mocked(downloadedDecks.isHeld).mockReturnValue(true);
+	vi.mocked(deviceStudySource.readDecks).mockResolvedValue(heldDeck([card(1), card(2)]));
+
+	await studySession.start({ deckId: 10 });
+	await studySession.rateCurrentCard(3);
+	expect(studySession.currentCard?.id).toBe(2);
+
+	render(StudyDeckPage);
+
+	await vi.waitFor(() => expect(downloadedDecks.isHeld).toHaveBeenCalled());
+	await vi.waitFor(() => expect(studySession.isLoading).toBe(false));
+	expect(deviceStudySource.readDecks).toHaveBeenCalledTimes(1);
+	expect(studySession.answeredCount).toBe(1);
+	expect(studySession.currentCard?.id).toBe(2);
+});
+
+test('drops the sitting in hand when the requested Deck needs a connection', async () => {
+	vi.mocked(downloadedDecks.isHeld).mockReturnValue(true);
+	vi.mocked(deviceStudySource.readDecks).mockResolvedValue(heldDeck([card(1)]));
+	await studySession.start({ deckId: 10 });
+	expect(studySession.isActive).toBe(true);
+
+	vi.mocked(downloadedDecks.isHeld).mockReturnValue(false);
+	setOnline(false);
+
+	const screen = render(StudyDeckPage);
+
+	await expect.element(screen.getByText('This Deck needs a connection')).toBeVisible();
+	expect(studySession.isActive).toBe(false);
+	expect(studySession.currentCard).toBeNull();
+});
+
+test('drops the sitting in hand when this Deck fails to load', async () => {
+	vi.mocked(downloadedDecks.isHeld).mockReturnValue(true);
+	vi.mocked(deviceStudySource.readDecks).mockResolvedValue(heldDeck([card(1)]));
+	await studySession.start({ deckId: 10 });
+	expect(studySession.isActive).toBe(true);
+
+	vi.mocked(downloadedDecks.isHeld).mockReturnValue(false);
+	vi.mocked(cardApi.getCards).mockRejectedValue(new Error('Server error'));
+
+	const screen = render(StudyDeckPage);
+
+	await expect.element(screen.getByText('Could not load this Deck')).toBeVisible();
+	expect(studySession.isActive).toBe(false);
+	expect(studySession.error).toBe('Server error');
+});

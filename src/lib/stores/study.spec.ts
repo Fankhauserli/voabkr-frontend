@@ -207,7 +207,7 @@ describe('StudySessionStore — the Session queue assembled on the device', () =
 		expect(device.readNewCardsIntroduced).toHaveBeenCalledWith(startOfDay(NOW));
 	});
 
-	it('does not refresh a sitting across midnight, because the Day began at 04:00', async () => {
+	it('keeps the same Day after midnight, because the Day began at 04:00', async () => {
 		const destination = at(17, 23, 30);
 		const afterMidnight = at(18, 0, 30);
 		let clock = destination;
@@ -215,6 +215,9 @@ describe('StudySessionStore — the Session queue assembled on the device', () =
 		const store = createStore(device.source, { dailyGoal: 10, now: () => clock });
 
 		await store.start({ deckId: 10 });
+		await answerGoodUntilFinished(store);
+
+		// A new sitting after midnight still belongs to the Day that began at 04:00.
 		clock = afterMidnight;
 		await store.start({ deckId: 10 });
 
@@ -287,6 +290,97 @@ describe('StudySessionStore — the Session queue assembled on the device', () =
 		await store.rateCurrentCard(3); // Card 2 returns from its Relearning step
 
 		expect(device.introductions).toEqual([{ dayStart: startOfDay(NOW), cardId: 1 }]);
+	});
+});
+
+describe('StudySessionStore — resuming the sitting in hand', () => {
+	it('resumes an active sitting for the same Deck without reading the device again', async () => {
+		const device = createDevice([deck(10, cards(4))]);
+		const store = createStore(device.source);
+
+		await store.start({ deckId: 10 });
+		await store.rateCurrentCard(3);
+		const cardInHand = store.currentCard?.id;
+
+		expect(await store.start({ deckId: 10 })).toBe(true);
+
+		expect(device.readDecks).toHaveBeenCalledTimes(1);
+		expect(device.readNewCardsIntroduced).toHaveBeenCalledTimes(1);
+		expect(store.currentCard?.id).toBe(cardInHand);
+		expect(store.answeredCount).toBe(1);
+	});
+
+	it('resumes an active due-queue sitting when the due queue is requested again', async () => {
+		const device = createDevice([deck(10, cards(2))]);
+		const store = createStore(device.source);
+
+		await store.start();
+		await store.start();
+
+		expect(device.readDecks).toHaveBeenCalledTimes(1);
+		expect(store.sessionDeckId).toBeNull();
+	});
+
+	it('keeps the Batch the Session summary built when the same scope starts again', async () => {
+		const dueCards = cards(BATCH_SIZE + 1);
+		const schedules = new Map(dueCards.map((c) => [c.id, scheduledAt(at(15, 9))]));
+		const device = createDevice([deck(10, dueCards, schedules)]);
+		const store = createStore(device.source);
+
+		await store.start({ deckId: 10 });
+		await answerGoodUntilFinished(store);
+		expect(store.startNextBatch()).toBe(true);
+		const firstCardOfNextBatch = store.currentCard?.id;
+
+		// The stage route starts the same scope on mount; the Batch built for the
+		// Session summary must survive that start.
+		expect(await store.start({ deckId: 10 })).toBe(true);
+
+		expect(device.readDecks).toHaveBeenCalledTimes(1);
+		expect(store.batchNumber).toBe(2);
+		expect(store.currentCard?.id).toBe(firstCardOfNextBatch);
+		expect(store.answeredCount).toBe(0);
+	});
+
+	it('starts a different scope fresh instead of resuming the sitting in hand', async () => {
+		const device = createDevice([deck(10, [card(1, 10)]), deck(20, [card(21, 20)])]);
+		const store = createStore(device.source);
+
+		await store.start({ deckId: 10 });
+		await store.start({ deckId: 20 });
+
+		expect(device.readDecks).toHaveBeenCalledTimes(2);
+		expect(store.sessionDeckId).toBe(20);
+		expect(store.currentCard?.id).toBe(21);
+	});
+
+	it('starts the due queue fresh after a Deck sitting, because the scope differs', async () => {
+		const device = createDevice([deck(10, [card(1, 10)]), deck(20, [card(21, 20)])]);
+		const store = createStore(device.source);
+
+		await store.start({ deckId: 10 });
+		await store.start();
+
+		expect(device.readDecks).toHaveBeenCalledTimes(2);
+		expect(device.readDecks).toHaveBeenLastCalledWith(undefined);
+		expect(store.sessionDeckId).toBeNull();
+		expect(store.totalCards).toBe(2);
+	});
+
+	it('starts a finished sitting for the same scope fresh', async () => {
+		const device = createDevice([deck(10, [card(1)])]);
+		const store = createStore(device.source);
+
+		await store.start({ deckId: 10 });
+		await answerGoodUntilFinished(store);
+		expect(store.isSessionFinished).toBe(true);
+
+		expect(await store.start({ deckId: 10 })).toBe(true);
+
+		expect(device.readDecks).toHaveBeenCalledTimes(2);
+		expect(store.isSessionFinished).toBe(false);
+		expect(store.isActive).toBe(true);
+		expect(store.answeredCount).toBe(0);
 	});
 });
 
