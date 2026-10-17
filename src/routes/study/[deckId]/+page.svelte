@@ -3,6 +3,9 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { deckApi } from '$lib/api/decks';
+	import { cardApi } from '$lib/api/cards';
+	import { downloadedDecks } from '$lib/device/downloadedDecks.svelte';
+	import { loadStudyDeck } from '$lib/device/loadStudyDeck';
 	import { studySession } from '$lib/stores/study.svelte';
 	import { modal } from '$lib/stores/modal.svelte';
 	import { registerStudySessionGuard } from '$lib/utils/backButton';
@@ -14,6 +17,7 @@
 	import TactileButton from '$lib/components/forms/TactileButton.svelte';
 
 	let deck = $state<Deck | null>(null);
+	let needsConnection = $state(false);
 	let deckId = $derived(parseInt(page.params.deckId ?? '0', 10));
 
 	onMount(() => {
@@ -25,27 +29,50 @@
 			return false;
 		});
 
-		(async () => {
-			try {
-				studySession.isLoading = true;
-				// The title is decoration: fetch it alongside the device queue and
-				// never let the network hold up the Study session started below.
-				void deckApi
-					.getDeckById(deckId)
-					.then((found) => (deck = found))
-					.catch(() => {});
-				await studySession.startDeckSession(deckId);
-			} catch (err: unknown) {
-				studySession.error = err instanceof Error ? err.message : 'Failed to load deck cards';
-			} finally {
-				studySession.isLoading = false;
-			}
-		})();
+		void loadDeck();
 
 		return () => {
 			unregisterGuard();
 		};
 	});
+
+	async function loadDeck() {
+		studySession.reset();
+		studySession.isLoading = true;
+		needsConnection = false;
+
+		// The Deck's name is a nicety; an offline Deck still studies without it.
+		deckApi
+			.getDeckById(deckId)
+			.then((loaded) => {
+				deck = loaded;
+			})
+			.catch(() => {});
+
+		try {
+			const loaded = await loadStudyDeck(deckId, {
+				isOnline: () => navigator.onLine,
+				isDeckHeld: async () => {
+					await downloadedDecks.ready;
+					return downloadedDecks.isHeld(deckId);
+				},
+				fetchAllCards: (id) => cardApi.getCards(id, { bypassCache: true }),
+				downloadDeck: (id, cards) => downloadedDecks.download(id, cards)
+			});
+
+			if (loaded.kind === 'needs-connection') {
+				needsConnection = true;
+				return;
+			}
+
+			// The Session queue is assembled from the device's copy, online or not.
+			await studySession.startDeckSession(deckId);
+		} catch (err: unknown) {
+			studySession.error = err instanceof Error ? err.message : 'Failed to load deck cards';
+		} finally {
+			studySession.isLoading = false;
+		}
+	}
 
 	function handleExitRequest() {
 		modal.openExitStudyConfirm(() => {
@@ -183,6 +210,70 @@
 					class="h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent"
 				></div>
 				<p class="mt-4 text-xs font-semibold text-ink-secondary">Loading deck cards...</p>
+			</div>
+		{:else if needsConnection}
+			<div
+				class="w-full max-w-sm rounded-2xl border border-amber/40 bg-surface p-6 text-center shadow-xs"
+			>
+				<div
+					class="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-amber/10 text-amber"
+				>
+					<svg
+						class="h-7 w-7"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						aria-hidden="true"
+					>
+						<path d="M2 2l20 20" />
+						<path d="M8.5 16.4A4.5 4.5 0 0 1 10 7.6" />
+						<path d="M5 17a5 5 0 0 1 1.5-9.8" />
+						<path d="M9.5 21a4 4 0 0 1 1.2-7.8" />
+					</svg>
+				</div>
+				<h2 class="text-lg font-bold text-ink-primary">This Deck needs a connection</h2>
+				<p class="mt-1 text-xs leading-relaxed text-ink-secondary">
+					It has not been downloaded to this device yet. Connect to the internet and study it once
+					to keep it available offline.
+				</p>
+				<div class="mt-6 flex flex-col gap-2">
+					<a href="/decks" class="block">
+						<TactileButton variant="primary" fullWidth>Back to Decks</TactileButton>
+					</a>
+				</div>
+			</div>
+		{:else if studySession.error}
+			<div
+				class="w-full max-w-sm rounded-2xl border border-crimson/40 bg-surface p-6 text-center shadow-xs"
+			>
+				<div
+					class="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-crimson/10 text-crimson"
+				>
+					<svg
+						class="h-7 w-7"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						aria-hidden="true"
+					>
+						<circle cx="12" cy="12" r="10" />
+						<line x1="12" y1="8" x2="12" y2="12" />
+						<line x1="12" y1="16" x2="12.01" y2="16" />
+					</svg>
+				</div>
+				<h2 class="text-lg font-bold text-ink-primary">Could not load this Deck</h2>
+				<p class="mt-1 text-xs leading-relaxed text-ink-secondary">{studySession.error}</p>
+				<div class="mt-6 flex flex-col gap-2">
+					<a href="/decks" class="block">
+						<TactileButton variant="primary" fullWidth>Back to Decks</TactileButton>
+					</a>
+				</div>
 			</div>
 		{:else if studySession.totalCards === 0}
 			<div
