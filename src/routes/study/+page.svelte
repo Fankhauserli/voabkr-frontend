@@ -27,7 +27,7 @@
 			page.url.searchParams.get('deck');
 		const targetDeckId = rawDeckId ? parseInt(rawDeckId, 10) : undefined;
 
-		studySession.startDueSession(targetDeckId);
+		void studySession.start({ deckId: targetDeckId });
 
 		return () => {
 			unregisterGuard();

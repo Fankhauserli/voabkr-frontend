@@ -48,7 +48,7 @@ beforeEach(() => {
 /** Finishes the three-Card Study session the device stand-in holds, failing the first one. */
 const finishSession = async () => {
 	studySession.reset();
-	await studySession.startDeckSession(10);
+	await studySession.start({ deckId: 10 });
 	await studySession.rateCurrentCard(1); // Card 1 Again: it returns from a Relearning step
 	let grades = 0;
 	while (!studySession.isSessionFinished) {
