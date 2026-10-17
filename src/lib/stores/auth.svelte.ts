@@ -2,18 +2,11 @@ import type { UserProfile, UserSettings } from '$lib/types';
 import { authApi } from '$lib/api/auth';
 import { ApiError } from '$lib/api/client';
 import { browserStorage } from '$lib/device/browserStorage';
-import { studySession } from '$lib/stores/study.svelte';
 import { reviewSync } from '$lib/stores/syncQueue.svelte';
-import { DEFAULT_DAILY_GOAL, preferences } from './preferences.svelte';
+import { preferences } from './preferences.svelte';
 
 /** Where the learner the device remembers is kept between launches. */
 export const REMEMBERED_LEARNER_KEY = 'voabkr_learner';
-
-const DEFAULT_SETTINGS: UserSettings = {
-	cardsPerDay: DEFAULT_DAILY_GOAL,
-	studyDirection: 'koreanToEnglish',
-	scratchPadEnabled: false
-};
 
 /** The part of the profile API the Auth store asks for. */
 export interface AuthProfileApi {
@@ -31,7 +24,6 @@ export interface AuthStorage {
 /** What the device remembers about the last learner it signed in. */
 interface RememberedLearner {
 	user: UserProfile;
-	settings: UserSettings | null;
 }
 
 export interface AuthStoreOptions {
@@ -45,10 +37,10 @@ export interface AuthStoreOptions {
 	 */
 	onLearnerChange?: (learnerId: number | null, sessionConfirmed: boolean) => void;
 	/**
-	 * Told the settings the account returned, and the ones remembered from the
-	 * last launch, so the Preferences module can adopt the values it owns.
+	 * Told the settings the account returned, so the Preferences module can
+	 * adopt the values it owns. Never told a value the account did not return.
 	 */
-	onSettings?: (settings: UserSettings | null) => void;
+	onSettings?: (settings: UserSettings) => void;
 }
 
 /** A real 401 is the only answer that means the session was revoked. */
@@ -66,11 +58,6 @@ function isUserProfile(value: unknown): value is UserProfile {
 	);
 }
 
-function isUserSettings(value: unknown): value is UserSettings {
-	if (typeof value !== 'object' || value === null) return false;
-	return typeof (value as Partial<UserSettings>).cardsPerDay === 'number';
-}
-
 /**
  * Svelte 5 Auth Store using pure runes ($state, $derived).
  *
@@ -80,7 +67,6 @@ function isUserSettings(value: unknown): value is UserSettings {
  */
 class AuthStore {
 	user = $state<UserProfile | null>(null);
-	settings = $state<UserSettings | null>(null);
 	isLoading = $state<boolean>(true);
 	isInitialized = $state<boolean>(false);
 	error = $state<string | null>(null);
@@ -93,7 +79,7 @@ class AuthStore {
 	readonly #api: AuthProfileApi;
 	readonly #storage: AuthStorage | null;
 	readonly #onLearnerChange: (learnerId: number | null, sessionConfirmed: boolean) => void;
-	readonly #onSettings: (settings: UserSettings | null) => void;
+	readonly #onSettings: (settings: UserSettings) => void;
 
 	constructor(options: AuthStoreOptions = {}) {
 		this.#api = options.api ?? authApi;
@@ -121,11 +107,6 @@ class AuthStore {
 			return;
 		}
 
-		// The remembered settings belong to the learner they were saved with. If a
-		// different learner is now confirmed, do not carry them across.
-		if (this.user !== null && this.user.id !== profile.id) {
-			this.settings = null;
-		}
 		this.user = profile;
 		this.#remember();
 		// The backend confirmed this session belongs to this learner, so their
@@ -133,25 +114,15 @@ class AuthStore {
 		this.#onLearnerChange(profile.id, true);
 
 		try {
-			const settings = await this.#api.getSettings();
-			this.settings = settings;
-			this.#remember();
-			this.#onSettings(settings);
-			if (settings.studyDirection) {
-				studySession.setStudyDirection(settings.studyDirection, false);
-			}
-			if (typeof settings.scratchPadEnabled === 'boolean') {
-				studySession.setScratchPadEnabled(settings.scratchPadEnabled, false);
-			}
+			// The account's settings belong to Preferences; the account store keeps
+			// only the profile. A failed request leaves the device's preferences,
+			// and their defaults, where they are.
+			this.#onSettings(await this.#api.getSettings());
 		} catch (error) {
 			if (isUnauthorized(error)) {
 				this.logout();
 				return;
 			}
-			// Keep the settings remembered from the last launch when the backend
-			// cannot be reached; fall back to the defaults on a first launch.
-			this.settings ??= { ...DEFAULT_SETTINGS };
-			this.#remember();
 		} finally {
 			this.isLoading = false;
 			this.isInitialized = true;
@@ -179,20 +150,6 @@ class AuthStore {
 		}
 	}
 
-	setSettings(settings: UserSettings | null) {
-		this.settings = settings;
-		this.#remember();
-	}
-
-	updateSettings(partial: Partial<UserSettings>) {
-		if (this.settings) {
-			this.settings = { ...this.settings, ...partial };
-		} else {
-			this.settings = { ...DEFAULT_SETTINGS, ...partial };
-		}
-		this.#remember();
-	}
-
 	setVerified(verified: boolean) {
 		if (this.user) {
 			this.user.isVerified = verified;
@@ -212,7 +169,6 @@ class AuthStore {
 	/** Signs the learner out on this device. Queued Grades are the queue's, not ours. */
 	logout() {
 		this.user = null;
-		this.settings = null;
 		this.error = null;
 		this.isLoading = false;
 		this.isInitialized = true;
@@ -232,11 +188,6 @@ class AuthStore {
 				return;
 			}
 			this.user = remembered.user;
-			this.settings = isUserSettings(remembered.settings) ? remembered.settings : null;
-			// The Preferences module can adopt the Daily goal the device remembered
-			// before the settings request settles, so a launch with no connection
-			// keeps the learner's goal rather than falling back to the default.
-			this.#onSettings(this.settings);
 			// The queue must know the learner even while the profile request is
 			// still in flight, so a Grade given in the meantime is owned correctly.
 			// It may not upload anything until a profile request confirms the
@@ -258,7 +209,7 @@ class AuthStore {
 	#remember(): void {
 		if (!this.user) return;
 		try {
-			const remembered: RememberedLearner = { user: this.user, settings: this.settings };
+			const remembered: RememberedLearner = { user: this.user };
 			this.#storage?.setItem(REMEMBERED_LEARNER_KEY, JSON.stringify(remembered));
 		} catch {
 			// A device that refuses storage still works for this launch.

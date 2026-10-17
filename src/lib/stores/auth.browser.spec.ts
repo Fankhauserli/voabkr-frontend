@@ -53,8 +53,8 @@ function profileApi(overrides: Partial<AuthProfileApi> = {}): AuthProfileApi {
 const networkFailure = () => Promise.reject(new TypeError('Failed to fetch'));
 
 /** The remembered learner as the store keeps it. */
-function remember(storage: AuthStorage, user = learner(), userSettings = settings): void {
-	storage.setItem(REMEMBERED_LEARNER_KEY, JSON.stringify({ user, settings: userSettings }));
+function remember(storage: AuthStorage, user = learner()): void {
+	storage.setItem(REMEMBERED_LEARNER_KEY, JSON.stringify({ user }));
 }
 
 describe('AuthStore remembering the learner', () => {
@@ -88,12 +88,10 @@ describe('AuthStore remembering the learner', () => {
 
 		// The learner is there before the first request even settles.
 		expect(nextLaunch.user).toEqual(learner());
-		expect(nextLaunch.settings).toEqual(settings);
 
 		await nextLaunch.fetchUser();
 
 		expect(nextLaunch.user).toEqual(learner());
-		expect(nextLaunch.settings).toEqual(settings);
 		expect(nextLaunch.isAuthenticated).toBe(true);
 	});
 
@@ -154,7 +152,7 @@ describe('AuthStore remembering the learner', () => {
 		expect(store.isAuthenticated).toBe(false);
 	});
 
-	it('keeps the remembered settings when the settings request cannot reach the backend', async () => {
+	it('keeps the remembered learner when the settings request cannot reach the backend', async () => {
 		remember(storage);
 		const store = makeStore({
 			api: profileApi({ getSettings: vi.fn(networkFailure) })
@@ -163,27 +161,24 @@ describe('AuthStore remembering the learner', () => {
 		await store.fetchUser();
 
 		expect(store.user).toEqual(learner());
-		expect(store.settings).toEqual(settings);
 	});
 
-	it("does not carry the previous learner's settings to a different confirmed learner", async () => {
-		remember(storage);
-		const other = { ...learner(8), name: 'Other Learner', email: 'other@example.com' };
-		const store = makeStore({
-			api: profileApi({
-				getProfile: vi.fn().mockResolvedValue(other),
-				getSettings: vi.fn(networkFailure)
-			})
-		});
+	it('remembers the profile and nothing else, because settings belong to Preferences', async () => {
+		const store = makeStore();
 
 		await store.fetchUser();
 
-		expect(store.user).toEqual(other);
-		expect(store.settings).toEqual({
-			cardsPerDay: 20,
-			studyDirection: 'koreanToEnglish',
-			scratchPadEnabled: false
-		});
+		const remembered = JSON.parse(storage.getItem(REMEMBERED_LEARNER_KEY) ?? '{}');
+		expect(remembered.user).toEqual(learner());
+		expect(remembered).not.toHaveProperty('settings');
+	});
+
+	it('restores a learner remembered by the earlier version, whose record also carried settings', () => {
+		storage.setItem(REMEMBERED_LEARNER_KEY, JSON.stringify({ user: learner(), settings }));
+
+		const store = makeStore({ api: profileApi({ getProfile: vi.fn(networkFailure) }) });
+
+		expect(store.user).toEqual(learner());
 	});
 
 	it('announces the confirmed learner so their Queued Grades can upload', async () => {
@@ -220,7 +215,6 @@ describe('AuthStore remembering the learner', () => {
 		store.logout();
 
 		expect(store.user).toBeNull();
-		expect(store.settings).toBeNull();
 		expect(storage.getItem(REMEMBERED_LEARNER_KEY)).toBeNull();
 		expect(onLearnerChange).toHaveBeenLastCalledWith(null, false);
 	});
@@ -234,12 +228,15 @@ describe('AuthStore remembering the learner', () => {
 		expect(onSettings).toHaveBeenLastCalledWith(settings);
 	});
 
-	it('tells Preferences the settings remembered from the last launch before the account answers', () => {
-		remember(storage);
+	it('does not invent settings for Preferences when the settings request fails', async () => {
 		const onSettings = vi.fn();
+		const store = makeStore({
+			api: profileApi({ getSettings: vi.fn(networkFailure) }),
+			onSettings
+		});
 
-		makeStore({ onSettings, api: profileApi({ getProfile: vi.fn(networkFailure) }) });
+		await store.fetchUser();
 
-		expect(onSettings).toHaveBeenCalledWith(settings);
+		expect(onSettings).not.toHaveBeenCalled();
 	});
 });
