@@ -230,20 +230,11 @@ class StudySessionStore {
 
 	/**
 	 * Start a Study session for the Cards held on the device due today, across
-	 * all held Decks or one Deck. The Session queue is assembled locally: no
+	 * all held Decks or one Deck. It reads the Cards and Review schedules the
+	 * device holds, assembles the Session queue, and offers its first Batch. No
 	 * network call is made.
 	 */
-	async startDueSession(deckId?: number): Promise<boolean> {
-		return this.#start(deckId);
-	}
-
-	/** Start a Study session for one Deck held on the device, with no network call. */
-	async startDeckSession(deckId: number): Promise<void> {
-		await this.#start(deckId);
-	}
-
-	/** Read the device's Cards, assemble the queue, and offer its first Batch. */
-	async #start(deckId?: number): Promise<boolean> {
+	async start({ deckId }: { deckId?: number } = {}): Promise<boolean> {
 		this.reset();
 		this.isLoading = true;
 		this.sessionDeckId = deckId ?? null;

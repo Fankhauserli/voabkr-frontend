@@ -137,7 +137,7 @@ describe('StudySessionStore — the Session queue assembled on the device', () =
 		const device = createDevice([deck(10, cards(5))]);
 		const store = createStore(device.source);
 
-		await store.startDeckSession(10);
+		await store.start({ deckId: 10 });
 		expect(store.isActive).toBe(true);
 		expect(device.readDecks).toHaveBeenCalledWith(10);
 
@@ -150,6 +150,28 @@ describe('StudySessionStore — the Session queue assembled on the device', () =
 		expect(reviews.submitted).toHaveLength(gradesGiven); // every Grade reached the injected sync queue
 	});
 
+	it('starts a Study session across every held Deck through one command', async () => {
+		const decks = [deck(10, [card(1, 10)]), deck(20, [card(21, 20)])];
+		const device = createDevice(decks);
+		const store = createStore(device.source);
+
+		expect(await store.start()).toBe(true);
+		expect(device.readDecks).toHaveBeenCalledWith(undefined);
+		expect(store.sessionDeckId).toBeNull();
+		expect(store.totalCards).toBe(2);
+	});
+
+	it('starts a Study session for one Deck through the same command', async () => {
+		const decks = [deck(10, [card(1, 10)]), deck(20, [card(21, 20)])];
+		const device = createDevice(decks);
+		const store = createStore(device.source);
+
+		expect(await store.start({ deckId: 10 })).toBe(true);
+		expect(device.readDecks).toHaveBeenCalledWith(10);
+		expect(store.sessionDeckId).toBe(10);
+		expect(store.totalCards).toBe(1);
+	});
+
 	it('offers Due Cards first, the one owed longest first', async () => {
 		const schedules = new Map([
 			[1, scheduledAt(at(16, 9))],
@@ -158,7 +180,7 @@ describe('StudySessionStore — the Session queue assembled on the device', () =
 		]);
 		const store = createStore(createDevice([deck(10, cards(3), schedules)]).source);
 
-		await store.startDeckSession(10);
+		await store.start({ deckId: 10 });
 
 		expect(await answerGoodUntilFinished(store)).toEqual([2, 1, 3]);
 	});
@@ -170,7 +192,7 @@ describe('StudySessionStore — the Session queue assembled on the device', () =
 		];
 		const store = createStore(createDevice(decks).source, { dailyGoal: 3 });
 
-		await store.startDueSession();
+		await store.start();
 
 		expect(await answerGoodUntilFinished(store)).toEqual([11, 21, 22, 23]);
 	});
@@ -179,7 +201,7 @@ describe('StudySessionStore — the Session queue assembled on the device', () =
 		const device = createDevice([deck(10, cards(10))], 7);
 		const store = createStore(device.source, { dailyGoal: 10 });
 
-		await store.startDeckSession(10);
+		await store.start({ deckId: 10 });
 
 		expect(store.totalCards).toBe(3);
 		expect(device.readNewCardsIntroduced).toHaveBeenCalledWith(startOfDay(NOW));
@@ -192,9 +214,9 @@ describe('StudySessionStore — the Session queue assembled on the device', () =
 		const device = createDevice([deck(10, cards(10))], 2);
 		const store = createStore(device.source, { dailyGoal: 10, now: () => clock });
 
-		await store.startDeckSession(10);
+		await store.start({ deckId: 10 });
 		clock = afterMidnight;
-		await store.startDeckSession(10);
+		await store.start({ deckId: 10 });
 
 		const [firstSitting, secondSitting] = device.readNewCardsIntroduced.mock.calls;
 		expect(firstSitting[0]).toEqual(at(17, 4));
@@ -207,7 +229,7 @@ describe('StudySessionStore — the Session queue assembled on the device', () =
 		const device = createDevice([deck(10, cards(30))], 0);
 		const store = createStore(device.source, { dailyGoal: 5 });
 
-		await store.startDeckSession(10);
+		await store.start({ deckId: 10 });
 
 		expect(store.totalCards).toBe(5);
 	});
@@ -221,7 +243,7 @@ describe('StudySessionStore — the Session queue assembled on the device', () =
 			dailyGoal: 3
 		});
 
-		await store.startDeckSession(10);
+		await store.start({ deckId: 10 });
 
 		expect(BATCH_SIZE).toBe(20);
 		expect(store.batchSize).toBe(BATCH_SIZE);
@@ -234,7 +256,7 @@ describe('StudySessionStore — the Session queue assembled on the device', () =
 		const schedules = new Map(dueCards.map((c) => [c.id, scheduledAt(at(15, 9))]));
 		const store = createStore(createDevice([deck(10, dueCards, schedules)]).source);
 
-		await store.startDeckSession(10);
+		await store.start({ deckId: 10 });
 		expect(store.totalCards).toBe(BATCH_SIZE);
 		expect(store.remainingDeckCards).toHaveLength(80);
 		expect(store.hasMoreCardsInDeck).toBe(true);
@@ -258,7 +280,7 @@ describe('StudySessionStore — the Session queue assembled on the device', () =
 		const device = createDevice([deck(10, [card(1), card(2)], schedules)]);
 		const store = createStore(device.source);
 
-		await store.startDeckSession(10);
+		await store.start({ deckId: 10 });
 
 		await store.rateCurrentCard(1); // Card 2, already reviewed: Again
 		await store.rateCurrentCard(3); // Card 1, New: its first Grade records the introduction
@@ -272,7 +294,7 @@ describe('StudySessionStore — Grades and the Session summary', () => {
 	it('reports every Grade to the offline sync queue, whatever the Session queue decides', async () => {
 		const store = createStore(createDevice([deck(10, cards(4))]).source);
 
-		await store.startDeckSession(10);
+		await store.start({ deckId: 10 });
 		await store.rateCurrentCard(2); // Card 1 Hard, outside a Relearning step: the queue does not bring it back
 		await store.rateCurrentCard(1); // Card 2 Again: the queue does bring it back
 		await answerGoodUntilFinished(store);
@@ -288,7 +310,7 @@ describe('StudySessionStore — Grades and the Session summary', () => {
 			{ now: () => new Date(NOW.getTime()) }
 		);
 
-		await store.startDeckSession(10);
+		await store.start({ deckId: 10 });
 		await store.rateCurrentCard(3);
 
 		expect(reviews.submitted[0]).toEqual({
@@ -302,7 +324,7 @@ describe('StudySessionStore — Grades and the Session summary', () => {
 	it('starts a New Card from the beginning of its Review schedule', async () => {
 		const store = createStore(createDevice([deck(10, [card(1)])]).source);
 
-		await store.startDeckSession(10);
+		await store.start({ deckId: 10 });
 		await store.rateCurrentCard(4);
 
 		expect(reviews.submitted[0].schedule).toEqual(
@@ -323,7 +345,7 @@ describe('StudySessionStore — Grades and the Session summary', () => {
 		});
 		const store = createStore(device.source);
 
-		await store.startDeckSession(10);
+		await store.start({ deckId: 10 });
 		await store.rateCurrentCard(3);
 
 		// Awaiting the Grade is enough: a new sitting that starts next reads both.
@@ -336,7 +358,7 @@ describe('StudySessionStore — Grades and the Session summary', () => {
 	it('marks a Card that comes back as relearning, until it is answered Good', async () => {
 		const store = createStore(createDevice([deck(10, cards(4))]).source);
 
-		await store.startDeckSession(10);
+		await store.start({ deckId: 10 });
 
 		await store.rateCurrentCard(1); // Card 1 Again: it returns three Cards later
 		expect(store.isCurrentCardRelearning).toBe(false);
@@ -355,7 +377,7 @@ describe('StudySessionStore — Grades and the Session summary', () => {
 	it('does not finish a Study session while a Card is in a Relearning step', async () => {
 		const store = createStore(createDevice([deck(10, cards(2))]).source);
 
-		await store.startDeckSession(10);
+		await store.start({ deckId: 10 });
 
 		await store.rateCurrentCard(3); // Card 1 Good
 		await store.rateCurrentCard(1); // Card 2 Again, with nothing behind it
@@ -369,7 +391,7 @@ describe('StudySessionStore — Grades and the Session summary', () => {
 	it('derives the Session summary from the Session queue record, mixing first attempts and returns', async () => {
 		const store = createStore(createDevice([deck(10, cards(4))]).source);
 
-		await store.startDeckSession(10);
+		await store.start({ deckId: 10 });
 		expect(store.sessionSummary).toBeNull(); // no Study session has finished yet
 
 		// Card 1: Again — not retained

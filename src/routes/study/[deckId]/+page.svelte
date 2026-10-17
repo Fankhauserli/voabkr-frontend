@@ -66,7 +66,7 @@
 			}
 
 			// The Session queue is assembled from the device's copy, online or not.
-			await studySession.startDeckSession(deckId);
+			await studySession.start({ deckId });
 		} catch (err: unknown) {
 			studySession.error = err instanceof Error ? err.message : 'Failed to load deck cards';
 		} finally {
