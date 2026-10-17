@@ -1,20 +1,12 @@
+import { browserStorage, type DeviceStorage } from '$lib/device/browserStorage';
+
 /** Marks the browser-tab home-screen nudge as dismissed on this device. */
 export const INSTALL_PROMPT_DISMISSED_KEY = 'voabkr_install_prompt_dismissed';
 
-/** The slice of Storage the dismissal needs; injectable for tests. */
-export interface PromptStorage {
-	getItem(key: string): string | null;
-	setItem(key: string, value: string): void;
-}
+/** The slice of device storage the dismissal needs; injectable for tests. */
+export type PromptStorage = DeviceStorage;
 
-/** The browser's storage, or null where it is unavailable (e.g. SSR). */
-export function browserStorage(): PromptStorage | null {
-	try {
-		return typeof localStorage !== 'undefined' ? localStorage : null;
-	} catch {
-		return null;
-	}
-}
+export { browserStorage };
 
 export function isInstallPromptDismissed(storage: PromptStorage | null): boolean {
 	if (!storage) return false;

@@ -1,7 +1,7 @@
 import type { Card, SM2Rating, StudySessionSummary, StudyDirection } from '$lib/types';
 import { nextReviewSchedule, type ReviewSchedule } from '$lib/scheduling/reviewSchedule';
 import { authApi } from '$lib/api/auth';
-import { auth } from './auth.svelte';
+import { preferences } from './preferences.svelte';
 import { reviewSync } from './syncQueue.svelte';
 import { SessionQueue } from './sessionQueue.svelte';
 import { assembleSessionQueue, startOfDay, type DeckContents } from '$lib/study/queueAssembly';
@@ -137,7 +137,7 @@ class StudySessionStore {
 		this.reviews = collaborators.reviews;
 		this.haptics = collaborators.haptics;
 		this.device = collaborators.device;
-		this.dailyGoal = collaborators.dailyGoal ?? (() => auth.cardsPerDay);
+		this.dailyGoal = collaborators.dailyGoal ?? (() => preferences.dailyGoal);
 		this.now = collaborators.now ?? (() => new SvelteDate());
 
 		const saved = getStoredValue('voabkr_study_direction') as StudyDirection | null;

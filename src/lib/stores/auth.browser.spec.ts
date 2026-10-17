@@ -224,4 +224,22 @@ describe('AuthStore remembering the learner', () => {
 		expect(storage.getItem(REMEMBERED_LEARNER_KEY)).toBeNull();
 		expect(onLearnerChange).toHaveBeenLastCalledWith(null, false);
 	});
+
+	it('tells Preferences the settings the account returned', async () => {
+		const onSettings = vi.fn();
+		const store = makeStore({ onSettings });
+
+		await store.fetchUser();
+
+		expect(onSettings).toHaveBeenLastCalledWith(settings);
+	});
+
+	it('tells Preferences the settings remembered from the last launch before the account answers', () => {
+		remember(storage);
+		const onSettings = vi.fn();
+
+		makeStore({ onSettings, api: profileApi({ getProfile: vi.fn(networkFailure) }) });
+
+		expect(onSettings).toHaveBeenCalledWith(settings);
+	});
 });
