@@ -100,4 +100,17 @@ describe('DownloadedDecks', () => {
 		expect(decks.isHeld(10)).toBe(false);
 		expect(decks.isHeld(20)).toBe(true);
 	});
+
+	it('catches its held view up to a Deck released elsewhere, without touching the store', async () => {
+		await decks.download(10, [card(1, 10)]);
+		await decks.download(20, [card(3, 20)]);
+
+		decks.forget(10);
+
+		expect(decks.isHeld(10)).toBe(false);
+		expect(decks.isHeld(20)).toBe(true);
+		// Sync already released the store; forgetting must only move the view, so
+		// the Cards are still there for the store to release exactly once.
+		expect((await decks.readDeck(10)).cards.map((held) => held.id)).toEqual([1]);
+	});
 });

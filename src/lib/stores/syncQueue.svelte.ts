@@ -1,12 +1,24 @@
-import { SvelteDate } from 'svelte/reactivity';
-import { reviewApi } from '$lib/api/reviews';
+import { SvelteDate, SvelteMap, SvelteSet } from 'svelte/reactivity';
+import { syncApi } from '$lib/api/sync';
 import { DeviceStore, type QueuedGrade } from '$lib/device/deviceStore';
 import type { ReviewSchedule } from '$lib/scheduling/reviewSchedule';
+import {
+	toSchedulePayload,
+	type GradeBatchEntry,
+	type GradePushEndpoint,
+	type GradePushOutcome
+} from '$lib/sync/contract';
 import type { SM2Rating } from '$lib/types';
 
-/** The queue's store, overridable so a test can use a database of its own. */
+/** The queue's store and endpoint, overridable so a test can supply its own. */
 export interface ReviewSyncQueueOptions {
 	databaseName?: string;
+	pushEndpoint?: GradePushEndpoint;
+}
+
+/** What one Grade did. `synced` means it is no longer waiting on the device. */
+export interface AddReviewResult {
+	synced: boolean;
 }
 
 /**
@@ -14,22 +26,28 @@ export interface ReviewSyncQueueOptions {
  * store so they are durable across a reload and never share a bucket with cache.
  *
  * Each Queued Grade belongs to the learner who gave it, so it survives a
- * sign-out and uploads only when that same learner signs back in. A flush sends
- * the current learner's Grades in order and stops at the first failure; Sync
- * (#30) replaces that with a batch that parks a refused Grade instead.
+ * sign-out and uploads only when that same learner signs back in. Every Grade
+ * goes through the batch route, online with a batch of one. A Grade the backend
+ * refuses is parked: it leaves the active queue, stays on the device, and is
+ * offered again on later Syncs. One refusal never stops the Grades that were
+ * sent with it.
  */
 class ReviewSyncQueue {
 	readonly #store: Promise<DeviceStore | null>;
 	readonly #ready: Promise<void>;
+	readonly #pushEndpoint: GradePushEndpoint;
 	#queue = $state<QueuedGrade[]>([]);
+	#parked = $state<QueuedGrade[]>([]);
 	#fallbackId = 0;
-	#flushRequested = false;
 	#learnerId = $state<number | null>(null);
 	#sessionConfirmed = false;
+	#pushChain: Promise<void> = Promise.resolve();
 	public isSyncing = $state<boolean>(false);
 	public isOnline = $state<boolean>(true);
 
 	constructor(options: ReviewSyncQueueOptions = {}) {
+		this.#pushEndpoint = options.pushEndpoint ?? syncApi;
+
 		if (typeof window === 'undefined') {
 			this.#store = Promise.resolve(null);
 			this.#ready = Promise.resolve();
@@ -42,15 +60,6 @@ class ReviewSyncQueue {
 			return null;
 		});
 		this.#ready = this.#hydrate();
-
-		window.addEventListener('online', () => {
-			this.isOnline = true;
-			void this.flushQueue();
-		});
-
-		window.addEventListener('offline', () => {
-			this.isOnline = false;
-		});
 	}
 
 	/** Resolves once the queue has been read from the device store. */
@@ -58,12 +67,30 @@ class ReviewSyncQueue {
 		return this.#ready;
 	}
 
+	/** The device store this queue reads and writes, once it has opened. */
+	public async device(): Promise<DeviceStore | null> {
+		await this.#ready;
+		return this.#store;
+	}
+
+	/** Grades waiting for the backend; parked Grades are not counted. */
 	public get pendingCount(): number {
 		return this.#queue.length;
 	}
 
+	/** Grades the backend refused, kept for a later Sync. */
+	public get parkedCount(): number {
+		return this.#parked.length;
+	}
+
+	/** The active queue, in the order the Grades were given. */
 	public get items(): QueuedGrade[] {
 		return this.#queue;
+	}
+
+	/** The parked Grades, in the order the Grades were given. */
+	public get parkedItems(): QueuedGrade[] {
+		return this.#parked;
 	}
 
 	/** The learner whose Queued Grades are recorded and may be sent. */
@@ -84,10 +111,6 @@ class ReviewSyncQueue {
 		this.#sessionConfirmed = learnerId !== null && sessionConfirmed;
 		if (this.#sessionConfirmed) {
 			void this.flushQueue();
-		} else {
-			// A flush requested for a session that is no longer confirmed must not
-			// run once the current one finishes.
-			this.#flushRequested = false;
 		}
 	}
 
@@ -97,120 +120,77 @@ class ReviewSyncQueue {
 	 * The schedule is written to the device store whichever way the Grade
 	 * travels, so the next Study session sees the Card's new Due moment rather
 	 * than repeating the one just answered. A Grade the backend accepts is not
-	 * queued; one that cannot be sent is, so a later flush carries it.
+	 * left queued; one that cannot be sent stays for a later Sync.
 	 */
 	async addReview(
 		cardId: number,
 		grade: SM2Rating,
 		answeredAt: Date = new SvelteDate(),
 		schedule: ReviewSchedule | null = null
-	): Promise<{ synced: boolean }> {
+	): Promise<AddReviewResult> {
 		await this.#ready;
 		const learnerId = this.#learnerId;
-
-		if (this.#sessionConfirmed && this.isOnline) {
-			try {
-				// The device owns the Review schedule: write it before the network
-				// so a slow or failed submission cannot leave it stale.
-				if (schedule) {
-					await this.#writeSchedule(cardId, schedule);
-				}
-				await reviewApi.submitReviewScore(cardId, grade);
-				return { synced: true };
-			} catch (err) {
-				console.warn(
-					`[SyncQueue] Direct submission failed for card ${cardId}. Queueing offline.`,
-					err
-				);
-			}
-		}
-
 		const store = await this.#store;
+		let queued: QueuedGrade;
 		if (store) {
-			const queued = await store.appendQueuedGrade({
-				learnerId,
-				cardId,
-				grade,
-				answeredAt,
-				schedule
-			});
-			this.#queue.push(queued);
+			queued = await store.appendQueuedGrade({ learnerId, cardId, grade, answeredAt, schedule });
 		} else {
 			// The store could not be opened: keep the Grade for this sitting so a
 			// connection can still carry it, though a reload would lose it.
-			this.#queue.push({
-				id: --this.#fallbackId,
-				learnerId,
-				cardId,
-				grade,
-				answeredAt,
-				schedule
-			});
+			queued = { id: --this.#fallbackId, learnerId, cardId, grade, answeredAt, schedule };
 		}
+		this.#queue.push(queued);
 
-		return { synced: false };
-	}
+		if (!this.#sessionConfirmed || !this.isOnline) return { synced: false };
 
-	/** Writes a Grade's Review schedule to the device store before the Grade is submitted. */
-	async #writeSchedule(cardId: number, schedule: ReviewSchedule): Promise<void> {
-		const store = await this.#store;
-		if (!store) return;
 		try {
-			await store.writeSchedule(cardId, schedule);
+			await this.pushGrades(this.#pushEndpoint);
 		} catch (error) {
-			// A stale local Due moment is repaired by the next Sync's pull.
-			console.error('[SyncQueue] Failed to write the Review schedule:', error);
+			console.warn('[SyncQueue] Direct submission failed. The Grade stays queued.', error);
+			return { synced: false };
 		}
+
+		return { synced: !this.#queue.some((item) => item.id === queued.id) };
 	}
 
-	async flushQueue(): Promise<void> {
+	/**
+	 * Sends every Grade the confirmed learner has on the device — active and
+	 * parked — as one batch and applies the result per Grade. Pushes are
+	 * serialized so a Grade recorded while a push is in flight cannot be sent
+	 * twice.
+	 */
+	async pushGrades(endpoint: GradePushEndpoint = this.#pushEndpoint): Promise<GradePushOutcome> {
 		await this.#ready;
-		// Signed out, unconfirmed, or the learner changed while this flush was
-		// waiting: nothing here may travel under the current session.
+		const run = this.#pushChain.then(() => this.#push(endpoint));
+		this.#pushChain = run.then(
+			() => undefined,
+			() => undefined
+		);
+		return run;
+	}
+
+	/**
+	 * Offers the confirmed learner's Grades now. The auth store calls this when
+	 * a session is confirmed; Sync calls `pushGrades` as part of every Sync.
+	 */
+	async flushQueue(): Promise<void> {
 		if (!this.#sessionConfirmed) return;
-		const learnerId = this.#learnerId;
-		if (learnerId === null) return;
-		if (typeof navigator !== 'undefined' && !navigator.onLine) return;
-		if (this.isSyncing) {
-			this.#flushRequested = true;
-			return;
-		}
-
-		this.isSyncing = true;
-
 		try {
-			while (this.#sessionConfirmed && this.#learnerId === learnerId) {
-				const index = this.#queue.findIndex((item) => item.learnerId === learnerId);
-				if (index < 0) break;
-				const item = this.#queue[index];
-				try {
-					await reviewApi.submitReviewScore(item.cardId, item.grade);
-					const store = await this.#store;
-					if (store) {
-						await store.removeQueuedGrades([item.id]);
-					}
-					this.#queue.splice(index, 1);
-				} catch (err) {
-					console.warn('[SyncQueue] Flushing stopped due to error:', err);
-					break;
-				}
-			}
-		} finally {
-			this.isSyncing = false;
-			if (this.#flushRequested) {
-				this.#flushRequested = false;
-				void this.flushQueue();
-			}
+			await this.pushGrades(this.#pushEndpoint);
+		} catch (error) {
+			console.warn('[SyncQueue] Flush failed. The Grades stay queued.', error);
 		}
 	}
 
 	async clear(): Promise<void> {
 		await this.#ready;
+		const ids = [...this.#queue, ...this.#parked].map((item) => item.id);
 		const store = await this.#store;
 		if (store) {
-			await store.removeQueuedGrades(this.#queue.map((item) => item.id));
+			await store.removeQueuedGrades(ids);
 		}
 		this.#queue = [];
+		this.#parked = [];
 	}
 
 	/** Closes the device store, ending this queue's use of it. */
@@ -219,15 +199,93 @@ class ReviewSyncQueue {
 		(await this.#store)?.close();
 	}
 
+	async #push(endpoint: GradePushEndpoint): Promise<GradePushOutcome> {
+		const learnerId = this.#learnerId;
+		const active =
+			learnerId === null ? [] : this.#queue.filter((grade) => grade.learnerId === learnerId);
+		const parked =
+			learnerId === null ? [] : this.#parked.filter((grade) => grade.learnerId === learnerId);
+
+		// Signed out, unconfirmed, or offline: the Grades stay on the device.
+		if (!this.#sessionConfirmed || !this.isOnline || learnerId === null) {
+			return { accepted: 0, parked: 0, remaining: active.length };
+		}
+
+		const grades = [...active, ...parked].sort((a, b) => a.id - b.id);
+		if (grades.length === 0) {
+			return { accepted: 0, parked: 0, remaining: 0 };
+		}
+
+		this.isSyncing = true;
+		try {
+			const results = await endpoint.pushGrades(grades.map(toBatchEntry));
+			const accepted = new SvelteSet<number>();
+			const refused = new SvelteSet<number>();
+
+			grades.forEach((grade, index) => {
+				const result = results[index];
+				if (result?.accepted) {
+					accepted.add(grade.id);
+				} else if (result) {
+					refused.add(grade.id);
+				}
+				// A missing result leaves the Grade active: nothing was decided, so a
+				// later Sync asks again rather than losing it or parking it.
+			});
+
+			const store = await this.#store;
+			if (store) {
+				if (accepted.size > 0) {
+					await store.removeQueuedGrades([...accepted]);
+				}
+				if (refused.size > 0) {
+					await store.parkQueuedGrades([...refused]);
+				}
+			}
+
+			const byId = new SvelteMap<number, QueuedGrade>();
+			for (const grade of grades) byId.set(grade.id, grade);
+			this.#queue = this.#queue.filter(
+				(grade) => !accepted.has(grade.id) && !refused.has(grade.id)
+			);
+			this.#parked = this.#parked.filter((grade) => !accepted.has(grade.id));
+			for (const id of refused) {
+				if (this.#parked.some((grade) => grade.id === id)) continue;
+				const grade = byId.get(id);
+				if (grade) this.#parked.push({ ...grade, parked: true });
+			}
+
+			return {
+				accepted: accepted.size,
+				parked: refused.size,
+				remaining: this.#queue.filter((grade) => grade.learnerId === learnerId).length
+			};
+		} finally {
+			this.isSyncing = false;
+		}
+	}
+
 	async #hydrate(): Promise<void> {
 		const store = await this.#store;
 		if (!store) return;
 		try {
-			this.#queue = await store.readQueuedGrades();
+			const grades = await store.readQueuedGrades();
+			this.#queue = grades.filter((grade) => !grade.parked);
+			this.#parked = grades.filter((grade) => grade.parked);
 		} catch (error) {
 			console.error('[SyncQueue] Failed to read the queue from the device store:', error);
 		}
 	}
+}
+
+/** One Queued Grade in the wire shape of the batch route. */
+function toBatchEntry(grade: QueuedGrade): GradeBatchEntry {
+	return {
+		cardId: grade.cardId,
+		grade: grade.grade,
+		answeredAt: grade.answeredAt.toISOString(),
+		reviewSchedule: toSchedulePayload(grade.schedule)
+	};
 }
 
 export const reviewSync = new ReviewSyncQueue();

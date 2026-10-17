@@ -1,13 +1,18 @@
 import type { Card, SM2Rating, StudySessionSummary, StudyDirection } from '$lib/types';
-import { nextReviewSchedule, type ReviewSchedule } from '$lib/scheduling/reviewSchedule';
+import {
+	newCardSchedule,
+	nextReviewSchedule,
+	type ReviewSchedule
+} from '$lib/scheduling/reviewSchedule';
 import { authApi } from '$lib/api/auth';
 import { preferences } from './preferences.svelte';
-import { reviewSync } from './syncQueue.svelte';
+import { reviewSync, type AddReviewResult } from './syncQueue.svelte';
 import { SessionQueue } from './sessionQueue.svelte';
 import { assembleSessionQueue, startOfDay, type DeckContents } from '$lib/study/queueAssembly';
 import { deviceStudySource, type StudyDeviceSource } from '$lib/study/deviceSource';
 import { hapticFeedback } from '$lib/utils/haptics';
 import { SvelteDate, SvelteMap, SvelteSet } from 'svelte/reactivity';
+import { appSync } from '$lib/sync/sync';
 
 /** How many Cards one Batch offers. It is the app's own number, not the Daily goal. */
 export const BATCH_SIZE = 20;
@@ -19,7 +24,12 @@ export interface ReviewSink {
 		grade: SM2Rating,
 		answeredAt: Date,
 		schedule: ReviewSchedule
-	): Promise<{ synced: boolean }>;
+	): Promise<AddReviewResult>;
+}
+
+/** A Sync the Study session asks for when a sitting ends. Fire-and-forget. */
+export interface SyncTrigger {
+	sync(): Promise<unknown>;
 }
 
 /** The tactile feedback the Study session asks for: the haptics module in the app. Fire-and-forget. */
@@ -38,6 +48,8 @@ export interface StudySessionCollaborators {
 	dailyGoal?: () => number;
 	/** The clock the Study session reads. */
 	now?: () => Date;
+	/** Sync, asked for once a Study session ends. */
+	sync?: SyncTrigger;
 }
 
 function getStoredValue(key: string): string | null {
@@ -59,11 +71,6 @@ function setStoredValue(key: string, value: string): void {
 	} catch {
 		// Ignore storage errors in non-browser environments
 	}
-}
-
-/** A Review schedule before a New Card's first Grade. */
-function newCardSchedule(answeredAt: Date): ReviewSchedule {
-	return { interval: 0, efactor: 2.5, repetitions: 0, nextReviewAt: answeredAt };
 }
 
 /** Every Card's Review schedule, gathered from the held Decks. */
@@ -93,6 +100,7 @@ class StudySessionStore {
 	private readonly device: StudyDeviceSource;
 	private readonly dailyGoal: () => number;
 	private readonly now: () => Date;
+	private readonly sync: SyncTrigger | undefined;
 
 	/** The Session queue of the batch being studied. Replaced when a new batch starts. */
 	private queue = $state(new SessionQueue());
@@ -139,6 +147,7 @@ class StudySessionStore {
 		this.device = collaborators.device;
 		this.dailyGoal = collaborators.dailyGoal ?? (() => preferences.dailyGoal);
 		this.now = collaborators.now ?? (() => new SvelteDate());
+		this.sync = collaborators.sync;
 
 		const saved = getStoredValue('voabkr_study_direction') as StudyDirection | null;
 		if (saved === 'koreanToEnglish' || saved === 'englishToKorean') {
@@ -324,10 +333,20 @@ class StudySessionStore {
 		await this.#persistGrade(answered.id, schedule);
 
 		// Optimistic submission via sync queue to backend (unawaited: the Grade must not block the UI)
-		void this.reviews.addReview(answered.id, grade, answeredAt, schedule);
+		const reported = this.reviews.addReview(answered.id, grade, answeredAt, schedule);
 
 		this.isFlipped = false;
 		this.clearScratchPad();
+
+		// The end of the sitting — the last Batch, not an intermediate one — is one
+		// of the three moments Sync runs. Let the last Grade reach the device queue
+		// first, so that Sync carries it rather than leaving it for a later Sync.
+		if (this.isSessionFinished && this.remainingDeckCards.length === 0) {
+			const triggerSync = (): void => {
+				void this.sync?.sync();
+			};
+			void reported.then(triggerSync, triggerSync);
+		}
 	}
 
 	/**
@@ -406,6 +425,7 @@ class StudySessionStore {
 export const studySession = new StudySessionStore({
 	reviews: reviewSync,
 	haptics: hapticFeedback,
-	device: deviceStudySource
+	device: deviceStudySource,
+	sync: appSync
 });
 export { StudySessionStore };

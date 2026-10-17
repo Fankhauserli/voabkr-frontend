@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import type { Card } from '$lib/types';
+import type { Card, Deck } from '$lib/types';
 import type { ReviewSchedule } from '$lib/scheduling/reviewSchedule';
 import { DeviceStore } from './deviceStore';
 
@@ -12,6 +12,9 @@ const card = (id: number, deckId: number): Card => ({
 	context: '',
 	example: ''
 });
+
+/** A Deck as the Library pull returns it. */
+const deck = (id: number): Deck => ({ id, name: `Deck ${id}`, type: 'vocabulary' });
 
 /** A Review schedule whose next Due moment is the given October day. */
 const schedule = (day: number): ReviewSchedule => ({
@@ -222,6 +225,62 @@ describe('DeviceStore', () => {
 		store = await DeviceStore.open(name);
 
 		expect((await store.readQueuedGrades()).map((grade) => grade.learnerId)).toEqual([7, 8, null]);
+	});
+
+	it('replaces a Deck wholesale, removing Cards and schedules the pull no longer returns', async () => {
+		await store.saveCards([card(1, 10), card(2, 10), card(3, 20)]);
+		await store.writeSchedule(1, schedule(23));
+		await store.writeSchedule(2, schedule(24));
+		await store.writeSchedule(3, schedule(25));
+
+		await store.replaceDeck(10, {
+			cards: [{ ...card(1, 10), englishWord: 'Edited Word 1' }, card(4, 10)],
+			schedules: new Map([
+				[1, schedule(30)],
+				[4, schedule(31)]
+			])
+		});
+
+		const contents = await store.readDeck(10);
+
+		expect(contents.cards.map((entry) => entry.id).sort()).toEqual([1, 4]);
+		expect(contents.cards.find((entry) => entry.id === 1)?.englishWord).toBe('Edited Word 1');
+		expect(contents.schedules.get(1)).toEqual(schedule(30));
+		expect(contents.schedules.has(2)).toBe(false);
+		expect(contents.schedules.get(4)).toEqual(schedule(31));
+		// A Deck that was not replaced is untouched.
+		expect(await store.readDeck(20)).toEqual({
+			cards: [card(3, 20)],
+			schedules: new Map([[3, schedule(25)]])
+		});
+	});
+
+	it('replaces the Library list wholesale and reads it back after a reload', async () => {
+		const first = [deck(10), deck(11)];
+		await store.replaceLibrary(first);
+
+		expect(await store.readLibrary()).toEqual(first);
+
+		const second = [deck(11), deck(12)];
+		await store.replaceLibrary(second);
+
+		store.close();
+		store = await DeviceStore.open(name);
+		expect(await store.readLibrary()).toEqual(second);
+	});
+
+	it('parks a refused Grade so it leaves the active queue but stays on the device', async () => {
+		const queued = await store.appendQueuedGrade({
+			learnerId: 7,
+			cardId: 1,
+			grade: 3,
+			answeredAt: new Date(2026, 9, 17, 9, 0),
+			schedule: schedule(23)
+		});
+
+		await store.parkQueuedGrades([queued.id]);
+
+		expect(await store.readQueuedGrades()).toEqual([{ ...queued, parked: true }]);
 	});
 
 	it('moves the old localStorage queue into the store, without losing a Grade', async () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { nextReviewSchedule, type ReviewSchedule } from './reviewSchedule';
+import { newCardSchedule, nextReviewSchedule, type ReviewSchedule } from './reviewSchedule';
 
 /**
  * A local wall-clock moment in 2026. An Interval is a whole number of days, so
@@ -19,6 +19,12 @@ const FIRST_GRADE_SCHEDULE: ReviewSchedule = {
 	repetitions: 0,
 	nextReviewAt: ANSWERED_AT
 };
+
+describe('newCardSchedule', () => {
+	it('starts a New Card at Interval 0 and Efactor 2.5 with nothing answered', () => {
+		expect(newCardSchedule(ANSWERED_AT)).toEqual(FIRST_GRADE_SCHEDULE);
+	});
+});
 
 describe('nextReviewSchedule', () => {
 	it('Again keeps the Card in its Relearning step and makes it Due one minute later', () => {

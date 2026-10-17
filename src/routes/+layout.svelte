@@ -4,6 +4,7 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { auth } from '$lib/stores/auth.svelte';
+	import { appSync } from '$lib/sync/sync';
 	import { toast } from '$lib/stores/toast.svelte';
 	import { initializeBackButton } from '$lib/utils/backButton';
 	import { initializeStatusBar } from '$lib/utils/statusBar';
@@ -23,6 +24,8 @@
 	let isStudyRoute = $derived(page.url.pathname.startsWith('/study'));
 
 	onMount(() => {
+		let unmounted = false;
+
 		// Initialize native Capacitor status bar & back button
 		initializeStatusBar('light');
 		const cleanBackButton = initializeBackButton({
@@ -42,8 +45,15 @@
 
 		window.addEventListener('session-expired', handleSessionExpired);
 
-		// Fetch current profile & settings
-		auth.fetchUser();
+		// Sync on app open and whenever the connection returns; a Study session
+		// ending asks for its own Sync from the Study session store. Wait for the
+		// profile first: a remembered learner's session is confirmed only then, so
+		// their Queued Grades are pushed before the pull replaces local state.
+		// fetchUser() resolves even when the request fails, so being offline does
+		// not hold Sync back.
+		void auth.fetchUser().then(() => {
+			if (!unmounted) void appSync.start();
+		});
 
 		// Register PWA service worker for offline caching
 		if ('serviceWorker' in navigator && typeof window !== 'undefined') {
@@ -53,7 +63,9 @@
 		}
 
 		return () => {
+			unmounted = true;
 			window.removeEventListener('session-expired', handleSessionExpired);
+			appSync.stop();
 			cleanBackButton.then((cleanup) => cleanup?.());
 		};
 	});

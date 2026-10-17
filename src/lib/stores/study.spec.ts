@@ -421,4 +421,56 @@ describe('StudySessionStore — Grades and the Session summary', () => {
 			retentionRate: 50
 		});
 	});
+
+	it('asks for a Sync when a Study session ends, after the last Grade is recorded', async () => {
+		const device = createDevice([deck(10, cards(2))]);
+		const sync = {
+			sync: vi.fn(async () => {
+				// The finished Grade is already with the queue by the time Sync runs.
+				expect(reviews.submitted).toHaveLength(2);
+				return {};
+			})
+		};
+		const store = new StudySessionStore({
+			reviews,
+			haptics: createNoopHaptics(),
+			device: device.source,
+			dailyGoal: () => 20,
+			now: () => new Date(NOW.getTime()),
+			sync
+		});
+
+		await store.start({ deckId: 10 });
+		await store.rateCurrentCard(3);
+		expect(sync.sync).not.toHaveBeenCalled();
+
+		await store.rateCurrentCard(3);
+		expect(store.isSessionFinished).toBe(true);
+		await vi.waitFor(() => expect(sync.sync).toHaveBeenCalledTimes(1));
+	});
+
+	it('asks for Sync only when the last Batch ends, not at an intermediate Batch boundary', async () => {
+		const sync = { sync: vi.fn(async () => ({})) };
+		const store = new StudySessionStore({
+			reviews,
+			haptics: createNoopHaptics(),
+			device: createDevice([deck(10, cards(BATCH_SIZE + 1))]).source,
+			dailyGoal: () => BATCH_SIZE + 1,
+			now: () => new Date(NOW.getTime()),
+			sync
+		});
+
+		await store.start({ deckId: 10 });
+		await answerGoodUntilFinished(store);
+
+		// The first Batch is complete, but the sitting has a Batch left to offer.
+		expect(store.isSessionFinished).toBe(true);
+		expect(store.remainingDeckCards).toHaveLength(1);
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		expect(sync.sync).not.toHaveBeenCalled();
+
+		expect(store.startNextBatch()).toBe(true);
+		await answerGoodUntilFinished(store);
+		await vi.waitFor(() => expect(sync.sync).toHaveBeenCalledTimes(1));
+	});
 });
