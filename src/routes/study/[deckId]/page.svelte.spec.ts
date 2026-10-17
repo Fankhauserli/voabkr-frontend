@@ -10,6 +10,7 @@ import { reviewApi } from '$lib/api/reviews';
 import { deckApi } from '$lib/api/decks';
 import { downloadedDecks } from '$lib/device/downloadedDecks.svelte';
 import { studySession } from '$lib/stores/study.svelte';
+import { toast } from '$lib/stores/toast.svelte';
 import type { Card } from '$lib/types';
 
 vi.mock('$app/state', () => ({ page: { params: { deckId: '10' } } }));
@@ -34,9 +35,10 @@ vi.mock('$lib/device/downloadedDecks.svelte', () => ({
 		ready: Promise.resolve(),
 		isHeld: vi.fn(() => false),
 		download: vi.fn(async () => {}),
-		contents: vi.fn(async () => ({ cards: [], schedules: new Map() }))
+		readDeck: vi.fn(async () => ({ cards: [], schedules: new Map() }))
 	}
 }));
+vi.mock('$lib/stores/toast.svelte', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 /** A Card belonging to the Deck under study. */
 const card = (id: number): Card => ({
@@ -91,6 +93,7 @@ test('downloads every Card in the Deck when it is first studied, then offers the
 	await vi.waitFor(() => {
 		expect(downloadedDecks.download).toHaveBeenCalledWith(10, allCards);
 	});
+	expect(cardApi.getCards).toHaveBeenCalledWith(10, { bypassCache: true });
 	await vi.waitFor(() => {
 		expect(studySession.totalCards).toBe(1);
 	});
@@ -100,7 +103,7 @@ test('downloads every Card in the Deck when it is first studied, then offers the
 test('studies a Deck already held on the device when there is no connection', async () => {
 	setOnline(false);
 	vi.mocked(downloadedDecks.isHeld).mockReturnValue(true);
-	vi.mocked(downloadedDecks.contents).mockResolvedValue({
+	vi.mocked(downloadedDecks.readDeck).mockResolvedValue({
 		cards: [card(5), card(6)],
 		schedules: new Map()
 	});
@@ -111,4 +114,31 @@ test('studies a Deck already held on the device when there is no connection', as
 		expect(studySession.totalCards).toBe(2);
 	});
 	expect(cardApi.getCards).not.toHaveBeenCalled();
+});
+
+test('reports an online Deck that fails to load instead of claiming it needs a connection', async () => {
+	vi.mocked(reviewApi.getDueCards).mockRejectedValue(new Error('Server error'));
+
+	const screen = render(StudyDeckPage);
+
+	await expect.element(screen.getByText('Could not load this Deck')).toBeVisible();
+	await expect.element(screen.getByText('Server error')).toBeVisible();
+	expect(screen.getByText('This Deck needs a connection').elements()).toHaveLength(0);
+	expect(cardApi.getCards).not.toHaveBeenCalled();
+});
+
+test('says a Deck could not be downloaded, then studies the Due Cards anyway', async () => {
+	const dueCards = [card(2)];
+	vi.mocked(cardApi.getCards).mockRejectedValue(new Error('Storage full'));
+	vi.mocked(reviewApi.getDueCards).mockResolvedValue(dueCards);
+
+	render(StudyDeckPage);
+
+	await vi.waitFor(() => {
+		expect(toast.error).toHaveBeenCalledWith('Could not download this Deck to the device');
+	});
+	await vi.waitFor(() => {
+		expect(studySession.totalCards).toBe(1);
+	});
+	expect(studySession.currentCard?.id).toBe(2);
 });

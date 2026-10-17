@@ -59,7 +59,11 @@ describe('loadStudyDeck', () => {
 			fetchDueCards: vi.fn(async () => dueCards)
 		});
 
-		expect(await loadStudyDeck(10, deps)).toEqual({ kind: 'ready', sessionCards: dueCards });
+		expect(await loadStudyDeck(10, deps)).toEqual({
+			kind: 'ready',
+			sessionCards: dueCards,
+			downloadFailed: true
+		});
 		expect(deps.downloadDeck).not.toHaveBeenCalled();
 	});
 
@@ -99,11 +103,14 @@ describe('loadStudyDeck', () => {
 		expect(deps.downloadDeck).not.toHaveBeenCalled();
 	});
 
-	it('falls back to a held Deck when the network fails rather than refusing to study', async () => {
+	it('falls back to a held Deck when the connection drops while fetching the Due Cards', async () => {
 		const heldCards = [card(4)];
+		let online = true;
 		const deps = dependencies({
+			isOnline: () => online,
 			isDeckHeld: async () => true,
 			fetchDueCards: vi.fn(async () => {
+				online = false;
 				throw new Error('Network error');
 			}),
 			readHeldDeck: vi.fn(async () => ({ cards: heldCards }))
@@ -112,14 +119,31 @@ describe('loadStudyDeck', () => {
 		expect(await loadStudyDeck(10, deps)).toEqual({ kind: 'ready', sessionCards: heldCards });
 	});
 
-	it('says a Deck that is not held needs a connection when the network fails', async () => {
+	it('says a Deck that is not held needs a connection when the connection drops while fetching the Due Cards', async () => {
+		let online = true;
 		const deps = dependencies({
+			isOnline: () => online,
 			isDeckHeld: async () => false,
 			fetchDueCards: vi.fn(async () => {
+				online = false;
 				throw new Error('Network error');
 			})
 		});
 
 		expect(await loadStudyDeck(10, deps)).toEqual({ kind: 'needs-connection' });
+		expect(deps.readHeldDeck).not.toHaveBeenCalled();
+	});
+
+	it('reports an online failure to fetch the Due Cards instead of claiming the Deck needs a connection', async () => {
+		const deps = dependencies({
+			isOnline: () => true,
+			isDeckHeld: async () => false,
+			fetchDueCards: vi.fn(async () => {
+				throw new Error('Server error');
+			})
+		});
+
+		await expect(loadStudyDeck(10, deps)).rejects.toThrow('Server error');
+		expect(deps.readHeldDeck).not.toHaveBeenCalled();
 	});
 });

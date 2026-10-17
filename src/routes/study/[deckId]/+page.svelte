@@ -9,6 +9,7 @@
 	import { loadStudyDeck } from '$lib/device/loadStudyDeck';
 	import { studySession } from '$lib/stores/study.svelte';
 	import { modal } from '$lib/stores/modal.svelte';
+	import { toast } from '$lib/stores/toast.svelte';
 	import { registerStudySessionGuard } from '$lib/utils/backButton';
 	import type { Deck } from '$lib/types';
 	import FlashCard from '$lib/components/study/FlashCard.svelte';
@@ -57,15 +58,19 @@
 					await downloadedDecks.ready;
 					return downloadedDecks.isHeld(deckId);
 				},
-				fetchAllCards: (id) => cardApi.getCards(id),
+				fetchAllCards: (id) => cardApi.getCards(id, { bypassCache: true }),
 				fetchDueCards: (id) => reviewApi.getDueCards(id),
 				downloadDeck: (id, cards) => downloadedDecks.download(id, cards),
-				readHeldDeck: (id) => downloadedDecks.contents(id)
+				readHeldDeck: (id) => downloadedDecks.readDeck(id)
 			});
 
 			if (loaded.kind === 'needs-connection') {
 				needsConnection = true;
 				return;
+			}
+
+			if (loaded.downloadFailed) {
+				toast.error('Could not download this Deck to the device');
 			}
 
 			await studySession.startDeckSession(loaded.sessionCards, deckId);
@@ -238,9 +243,39 @@
 				</div>
 				<h2 class="text-lg font-bold text-ink-primary">This Deck needs a connection</h2>
 				<p class="mt-1 text-xs leading-relaxed text-ink-secondary">
-					It is not saved on this device yet. Connect to the internet and study it once to keep it
-					available offline.
+					It has not been downloaded to this device yet. Connect to the internet and study it once
+					to keep it available offline.
 				</p>
+				<div class="mt-6 flex flex-col gap-2">
+					<a href="/decks" class="block">
+						<TactileButton variant="primary" fullWidth>Back to Decks</TactileButton>
+					</a>
+				</div>
+			</div>
+		{:else if studySession.error}
+			<div
+				class="w-full max-w-sm rounded-2xl border border-crimson/40 bg-surface p-6 text-center shadow-xs"
+			>
+				<div
+					class="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-crimson/10 text-crimson"
+				>
+					<svg
+						class="h-7 w-7"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						aria-hidden="true"
+					>
+						<circle cx="12" cy="12" r="10" />
+						<line x1="12" y1="8" x2="12" y2="12" />
+						<line x1="12" y1="16" x2="12.01" y2="16" />
+					</svg>
+				</div>
+				<h2 class="text-lg font-bold text-ink-primary">Could not load this Deck</h2>
+				<p class="mt-1 text-xs leading-relaxed text-ink-secondary">{studySession.error}</p>
 				<div class="mt-6 flex flex-col gap-2">
 					<a href="/decks" class="block">
 						<TactileButton variant="primary" fullWidth>Back to Decks</TactileButton>

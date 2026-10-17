@@ -25,9 +25,6 @@
 
 	onMount(() => {
 		void loadDecks();
-		// The device store opens in the background; the held Decks appear as soon
-		// as it has been read, without delaying the Library.
-		void downloadedDecks.ready;
 
 		const updateConnection = () => {
 			isOnline = navigator.onLine;

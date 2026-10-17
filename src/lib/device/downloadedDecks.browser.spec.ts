@@ -64,7 +64,7 @@ describe('DownloadedDecks', () => {
 		expect(decks.isHeld(10)).toBe(true);
 		expect(decks.heldDeckIds.has(10)).toBe(true);
 
-		const contents = await decks.contents(10);
+		const contents = await decks.readDeck(10);
 		expect(contents.cards.map((held) => held.id)).toEqual([1, 2]);
 		// The studied Card carries its schedule; the New Card has none yet.
 		expect(contents.schedules.get(1)).toEqual(heldSchedule(23));
@@ -79,7 +79,7 @@ describe('DownloadedDecks', () => {
 		await decks.ready;
 
 		expect(decks.isHeld(10)).toBe(true);
-		expect((await decks.contents(10)).cards.map((held) => held.id)).toEqual([1]);
+		expect((await decks.readDeck(10)).cards.map((held) => held.id)).toEqual([1]);
 	});
 
 	it('removes a Deck from the device at once, leaving every other held Deck alone', async () => {
@@ -90,8 +90,8 @@ describe('DownloadedDecks', () => {
 
 		expect(decks.isHeld(10)).toBe(false);
 		expect(decks.isHeld(20)).toBe(true);
-		expect(await decks.contents(10)).toEqual({ cards: [], schedules: new Map() });
-		expect((await decks.contents(20)).cards.map((held) => held.id)).toEqual([3]);
+		expect(await decks.readDeck(10)).toEqual({ cards: [], schedules: new Map() });
+		expect((await decks.readDeck(20)).cards.map((held) => held.id)).toEqual([3]);
 
 		// The removal is durable, not only a change to the view.
 		await decks.close();

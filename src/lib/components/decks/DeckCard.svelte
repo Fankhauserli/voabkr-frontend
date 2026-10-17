@@ -105,7 +105,7 @@
 				<button
 					type="button"
 					onclick={() => onRemoveFromDevice?.(deck)}
-					class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border-subtle text-ink-muted transition hover:border-crimson hover:text-crimson active:scale-95"
+					class="inline-flex h-12 w-12 items-center justify-center rounded-lg border border-border-subtle text-ink-muted transition hover:border-crimson hover:text-crimson active:scale-95"
 					title="Remove from device"
 					aria-label="Remove {deck.name} from this device"
 				>

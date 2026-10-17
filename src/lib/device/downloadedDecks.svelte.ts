@@ -70,7 +70,7 @@ export class DownloadedDecks {
 	}
 
 	/** Reads a Deck held on the device, without a network. */
-	async contents(deckId: number): Promise<DownloadedDeck> {
+	async readDeck(deckId: number): Promise<DownloadedDeck> {
 		await this.#ready;
 		const store = await this.#store;
 		if (!store) return { cards: [], schedules: new SvelteMap() };

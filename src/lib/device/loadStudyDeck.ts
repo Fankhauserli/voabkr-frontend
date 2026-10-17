@@ -19,7 +19,8 @@ export interface StudyDeckDependencies {
 }
 
 /** What a Study session should offer, or why it cannot be started. */
-export type StudyDeckLoad = { kind: 'ready'; sessionCards: Card[] } | { kind: 'needs-connection' };
+export type StudyDeckLoad =
+	{ kind: 'ready'; sessionCards: Card[]; downloadFailed?: boolean } | { kind: 'needs-connection' };
 
 /**
  * Loads the Cards a Study session of one Deck offers.
@@ -31,8 +32,11 @@ export type StudyDeckLoad = { kind: 'ready'; sessionCards: Card[] } | { kind: 'n
  *
  * With no connection, only a Deck already held can be studied. A Deck that is
  * not held answers that it needs a connection rather than surfacing whatever
- * the failed fetch threw. A failed fetch for a Deck that is held falls back to
- * what the device has, so a dropped connection does not stop the sitting.
+ * the failed fetch threw. If the connection drops while the Due Cards are being
+ * fetched, the same rule applies. Any other failure is the caller's to report.
+ *
+ * A failed download does not stop the sitting, but it is marked on the result so
+ * the caller can tell the learner the Deck is not available offline.
  */
 export async function loadStudyDeck(
 	deckId: number,
@@ -41,31 +45,49 @@ export async function loadStudyDeck(
 	const held = await deps.isDeckHeld(deckId);
 
 	if (!deps.isOnline()) {
-		return held
-			? { kind: 'ready', sessionCards: (await deps.readHeldDeck(deckId)).cards }
-			: { kind: 'needs-connection' };
+		return heldDeckOrNeedsConnection(deckId, held, deps);
 	}
 
 	let dueCards: Card[];
 	try {
 		dueCards = await deps.fetchDueCards(deckId);
-	} catch {
-		return held
-			? { kind: 'ready', sessionCards: (await deps.readHeldDeck(deckId)).cards }
-			: { kind: 'needs-connection' };
+	} catch (error) {
+		// The connection can drop between the check and the fetch. Only then is
+		// "needs a connection" the truth; any other failure belongs to the caller.
+		if (!deps.isOnline()) {
+			return heldDeckOrNeedsConnection(deckId, held, deps);
+		}
+		throw error;
 	}
 
+	let downloadFailed = false;
 	if (!held) {
 		try {
 			await deps.downloadDeck(deckId, await deps.fetchAllCards(deckId));
 		} catch (error) {
 			// The sitting can still go ahead; the next study tries the download again.
+			downloadFailed = true;
 			console.error('[loadStudyDeck] Failed to download the Deck:', error);
 		}
 	}
 
 	return {
 		kind: 'ready',
-		sessionCards: dueCards.filter((card) => card.deckId === deckId)
+		sessionCards: dueCards.filter((card) => card.deckId === deckId),
+		...(downloadFailed ? { downloadFailed: true } : {})
 	};
+}
+
+/**
+ * The Cards a held Deck offers with no connection, or the answer that the Deck
+ * needs one. Both the offline path and a connection that drops mid-fetch ask
+ * this same question.
+ */
+async function heldDeckOrNeedsConnection(
+	deckId: number,
+	held: boolean,
+	deps: StudyDeckDependencies
+): Promise<StudyDeckLoad> {
+	if (!held) return { kind: 'needs-connection' };
+	return { kind: 'ready', sessionCards: (await deps.readHeldDeck(deckId)).cards };
 }
