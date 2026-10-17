@@ -106,9 +106,10 @@
 
 	function handleClearCache() {
 		selectionClick();
-		void reviewSync.clear();
+		// Queued Grades are not cache: the backend has not accepted them, so they
+		// cannot be reconstructed. Clearing cache leaves them on the device.
 		clientCache.clear();
-		toast.info('Local card & deck cache cleared');
+		toast.info('Cached data cleared. Queued grades remain on this device.');
 	}
 
 	async function handleResendVerification() {
@@ -414,8 +415,8 @@
 						<span class="text-xs font-bold text-ink-primary">Study Data on This Device</span>
 						<p class="text-[11px] text-ink-secondary">
 							{reviewSync.pendingCount === 0
-								? 'All reviews synced'
-								: `${reviewSync.pendingCount} review(s) pending sync`}
+								? 'All grades synced'
+								: `${reviewSync.pendingCount} queued ${reviewSync.pendingCount === 1 ? 'grade' : 'grades'} pending sync`}
 						</p>
 					</div>
 					<button
@@ -423,7 +424,7 @@
 						onclick={handleClearCache}
 						class="text-xs font-semibold text-crimson underline"
 					>
-						Reset Local Data
+						Clear Cache
 					</button>
 				</div>
 			</div>
