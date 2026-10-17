@@ -1,7 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { StatusBar, Style } from '@capacitor/status-bar';
-
-export type AppTheme = 'light' | 'dark';
+import type { AppTheme } from '$lib/types';
 
 export const STATUS_BAR_THEMES = {
 	light: {

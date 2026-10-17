@@ -7,6 +7,7 @@ import { render } from 'vitest-browser-svelte';
 import SettingsPage from './+page.svelte';
 import { authApi } from '$lib/api/auth';
 import { clientCache } from '$lib/api/cache';
+import { preferences, THEME_KEY } from '$lib/stores/preferences.svelte';
 import { toast } from '$lib/stores/toast.svelte';
 import type { ReviewSyncQueue } from '$lib/stores/syncQueue.svelte';
 
@@ -102,10 +103,43 @@ describe('Settings local data', () => {
 		await queue.close();
 		queueHolder.queue = null;
 		await deleteDatabase(databaseName);
+		// The Preferences singleton is shared by every test in this file; return
+		// it to the default theme without leaving a choice in storage.
+		preferences.setTheme('light');
 		localStorage.clear();
 		toast.clear();
 		vi.clearAllMocks();
 		vi.restoreAllMocks();
+	});
+
+	it('reports the theme in use and remembers a chosen theme on the device', async () => {
+		// The singleton is shared across tests; start from a launch with no stored
+		// theme choice, so the control must fall back to its default.
+		preferences.setTheme('light');
+		localStorage.clear();
+
+		const screen = render(SettingsPage);
+
+		// The control reports the light default rather than an uninitialised value.
+		await expect
+			.element(screen.getByRole('button', { name: 'Hanji' }))
+			.toHaveAttribute('aria-pressed', 'true');
+		await expect
+			.element(screen.getByRole('button', { name: 'Sumi' }))
+			.toHaveAttribute('aria-pressed', 'false');
+		expect(document.documentElement.classList.contains('dark')).toBe(false);
+
+		await screen.getByRole('button', { name: 'Sumi' }).click();
+
+		// The choice is reported by the control, applied, and kept on the device.
+		await expect
+			.element(screen.getByRole('button', { name: 'Sumi' }))
+			.toHaveAttribute('aria-pressed', 'true');
+		await expect
+			.element(screen.getByRole('button', { name: 'Hanji' }))
+			.toHaveAttribute('aria-pressed', 'false');
+		expect(document.documentElement.classList.contains('dark')).toBe(true);
+		expect(localStorage.getItem(THEME_KEY)).toBe('dark');
 	});
 
 	it('clears cached payloads but leaves a pending Queued Grade on the device', async () => {
