@@ -11,8 +11,8 @@
 
 	// Determine effective visibility kind: 'public' | 'shared' | 'private'
 	let visibility = $derived.by<'public' | 'shared' | 'private'>(() => {
-		const effRole = role ?? deck?.userAccessRole ?? deck?.user_access_role;
-		const effPublic = isPublic ?? deck?.isPublic ?? deck?.is_public ?? false;
+		const effRole = role ?? deck?.userAccessRole;
+		const effPublic = isPublic ?? deck?.isPublic ?? false;
 
 		if (effRole === 'view' || effRole === 'edit') {
 			return 'shared';

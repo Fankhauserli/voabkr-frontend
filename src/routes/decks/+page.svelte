@@ -42,21 +42,21 @@
 	}
 
 	function isMyDeck(d: Deck): boolean {
-		const role = d.userAccessRole ?? d.user_access_role;
+		const role = d.userAccessRole;
 		if (role === 'owner') return true;
-		if (auth.user && (d.ownerId === auth.user.id || d.owner_id === auth.user.id)) return true;
+		if (auth.user && d.ownerId === auth.user.id) return true;
 		return false;
 	}
 
 	function isSharedDeck(d: Deck): boolean {
-		const role = d.userAccessRole ?? d.user_access_role;
+		const role = d.userAccessRole;
 		return role === 'view' || role === 'edit';
 	}
 
 	function isPublicDeck(d: Deck): boolean {
-		const role = d.userAccessRole ?? d.user_access_role;
+		const role = d.userAccessRole;
 		if (role === 'public') return true;
-		if (d.isPublic === true || d.is_public === true) return true;
+		if (d.isPublic === true) return true;
 		return false;
 	}
 

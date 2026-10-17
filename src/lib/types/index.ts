@@ -1,7 +1,12 @@
 /**
- * Universal TypeScript interfaces for voabkr-frontend.
- * Strictly aligned with backend Go/Gin models (voabkr-backend/types)
- * and specifications defined in FRONTEND_SPEC.md.
+ * Universal TypeScript interfaces for voabkr-frontend, following the
+ * specifications in FRONTEND_SPEC.md.
+ *
+ * Wire field names are the names the API serves — a protocol buffer's
+ * json_name, not its internal field name. A snake_case buffer name is accepted
+ * as an input alias by the API but is never served, so the client does not
+ * declare it. Fields the API does not serve yet (for example the Deck counts)
+ * are kept deliberately and tracked separately.
  */
 
 export type DeckType = 'vocabulary' | 'grammar';
@@ -15,13 +20,9 @@ export interface Deck {
 	cardCount?: number;
 	dueCount?: number;
 	ownerId?: number;
-	owner_id?: number;
 	isPublic?: boolean;
-	is_public?: boolean;
 	shareToken?: string;
-	share_token?: string;
 	userAccessRole?: DeckAccessRole;
-	user_access_role?: DeckAccessRole;
 }
 
 export interface DeckRequest {
@@ -29,7 +30,6 @@ export interface DeckRequest {
 	type: DeckType;
 	description?: string;
 	isPublic?: boolean;
-	is_public?: boolean;
 }
 
 export interface CreateDeckRequest extends DeckRequest {}
@@ -42,7 +42,6 @@ export interface ShareDeckRequest {
 
 export interface DeckShareResponse {
 	shareToken?: string;
-	share_token?: string;
 	message?: string;
 }
 
@@ -53,10 +52,8 @@ export interface SharedDeckPreview {
 	cardCount?: number;
 	ownerName?: string;
 	isPublic?: boolean;
-	is_public?: boolean;
 	permission?: 'view' | 'edit';
 	shareToken?: string;
-	share_token?: string;
 }
 
 export interface ForgotPasswordRequest {
