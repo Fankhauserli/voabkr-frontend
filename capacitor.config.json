@@ -10,7 +10,7 @@
 	"plugins": {
 		"SplashScreen": {
 			"launchShowDuration": 1500,
-			"backgroundColor": "#F8F6F0",
+			"backgroundColor": "#F7F5F0",
 			"androidSplashResourceName": "splash"
 		},
 		"CapacitorCookies": {

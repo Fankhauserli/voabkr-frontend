@@ -47,7 +47,7 @@
 				{disabled}
 				onclick={() => onSelectEase(item.ease)}
 				class="flex min-h-[54px] flex-col items-center justify-center rounded-xl border px-1 py-2 text-ink-primary transition active:scale-[0.97] disabled:pointer-events-none disabled:opacity-40"
-				style="background-color: {item.colorLight.bg}; border-color: {item.colorLight.border};"
+				style="background-color: var(--grade-{item.tone}-bg); border-color: var(--grade-{item.tone}-border);"
 				aria-label="{item.label} – next in {item.nextHint}"
 			>
 				<span class="text-xs leading-none font-bold">{item.label}</span>

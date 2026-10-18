@@ -121,7 +121,7 @@ _Avoid_: notepad, whiteboard, drawing board
 ### Preferences
 
 **Theme**:
-The app's palette: Hanji paper in light, Sumi ink at night. It is a device preference, never saved to the account, so it does not follow a learner to another device.
+The app's palette: Ink & Mulberry in light, Sumi ink at night. It is a device preference, never saved to the account, so it does not follow a learner to another device.
 _Avoid_: color scheme, skin
 
 ### Without a connection

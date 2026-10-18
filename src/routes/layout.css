@@ -13,9 +13,6 @@
 	--color-ink-muted: var(--text-muted);
 
 	--color-primary: var(--accent-primary);
-	--color-primary-dark: var(--accent-primary-dark);
-	/* Aliased to Scholarly Indigo to guarantee zero orange across all components */
-	--color-terracotta: var(--accent-primary);
 	--color-celadon: var(--accent-celadon);
 	--color-navy: var(--accent-navy);
 	--color-amber: var(--accent-amber);
@@ -30,22 +27,30 @@
 }
 
 :root {
-	/* Light Theme (Warm Hanji Notebook) */
-	--bg-canvas: #f9f8f5;
+	/* Light Theme (Ink & Mulberry) */
+	--bg-canvas: #f7f5f0;
 	--bg-surface: #ffffff;
-	--bg-surface-elevated: #f2efe9;
-	--border-subtle: #e5e0d4;
-	--border-strong: #c8c1b2;
-	--text-primary: #1a1917;
-	--text-secondary: #5c574e;
-	--text-muted: #8c867a;
-	--accent-primary: #1e2d3d; /* Scholarly Indigo (쪽빛) */
-	--accent-primary-dark: #141f2b;
-	--accent-terracotta: #1e2d3d; /* Zero orange */
-	--accent-celadon: #2d6a5d; /* Celadon Jade (비색) */
-	--accent-navy: #1a3452;
-	--accent-amber: #9e7d3b; /* Subtle antique brass gold */
-	--accent-crimson: #a83232; /* Traditional seal vermilion ink */
+	--bg-surface-elevated: #efece4;
+	--border-subtle: #dfdacf;
+	--border-strong: #b8b0a1;
+	--text-primary: #1b1a18;
+	--text-secondary: #514c45;
+	--text-muted: #6e685e;
+	--accent-primary: #24486b; /* Primary indigo */
+	--accent-celadon: #2a6657;
+	--accent-navy: #1d3a5c;
+	--accent-amber: #8a641e;
+	--accent-crimson: #a62d35;
+
+	/* Study Grade buttons: the fill and border each Grade carries in this Theme */
+	--grade-again-bg: #fbedec;
+	--grade-again-border: #cb6a64;
+	--grade-hard-bg: #faf2e2;
+	--grade-hard-border: #ad8228;
+	--grade-good-bg: #eaf3ef;
+	--grade-good-border: #4f967b;
+	--grade-easy-bg: #e4f1ec;
+	--grade-easy-border: #438b74;
 
 	/* Safe areas */
 	--safe-top: env(safe-area-inset-top, 0px);
@@ -64,12 +69,20 @@
 	--text-secondary: #a8a296;
 	--text-muted: #6c675e;
 	--accent-primary: #6b95bd; /* Refined Indigo highlight in dark mode */
-	--accent-primary-dark: #82a8cb;
-	--accent-terracotta: #6b95bd; /* Zero orange */
 	--accent-celadon: #4ea08e;
 	--accent-navy: #5a8bbd;
 	--accent-amber: #cf9f4d;
 	--accent-crimson: #e05555;
+
+	/* Study Grade buttons keep the dark fills and borders they have always had */
+	--grade-again-bg: #331818;
+	--grade-again-border: #8a2e2e;
+	--grade-hard-bg: #332b18;
+	--grade-hard-border: #8a722e;
+	--grade-good-bg: #183328;
+	--grade-good-border: #2e805a;
+	--grade-easy-bg: #152b24;
+	--grade-easy-border: #266b59;
 }
 
 body {

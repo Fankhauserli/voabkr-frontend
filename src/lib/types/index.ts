@@ -157,7 +157,7 @@ export type AnkiRating = 1 | 2 | 3 | 4;
 /** Study direction: prompt in Korean and recall English, or vice-versa. */
 export type StudyDirection = 'koreanToEnglish' | 'englishToKorean';
 
-/** The app's palette: warm Hanji paper, or Sumi ink at night. */
+/** The app's palette: Ink & Mulberry by day, or Sumi ink at night. */
 export type AppTheme = 'light' | 'dark';
 
 export interface SM2RatingMeta {
@@ -165,14 +165,8 @@ export interface SM2RatingMeta {
 	label: string;
 	/** Short hint shown under the label, e.g. "<1 min" */
 	nextHint: string;
-	colorLight: {
-		bg: string;
-		border: string;
-	};
-	colorDark: {
-		bg: string;
-		border: string;
-	};
+	/** The Grade's palette role; the Theme stylesheet owns its fill and border. */
+	tone: 'again' | 'hard' | 'good' | 'easy';
 	hapticType: 'warning' | 'medium' | 'success';
 }
 
@@ -181,32 +175,28 @@ export const SM2_RATINGS_CONFIG: readonly SM2RatingMeta[] = [
 		ease: 1,
 		label: 'Again',
 		nextHint: '< 1 min',
-		colorLight: { bg: '#FDF2F2', border: '#E88080' },
-		colorDark: { bg: '#331818', border: '#8A2E2E' },
+		tone: 'again',
 		hapticType: 'warning'
 	},
 	{
 		ease: 2,
 		label: 'Hard',
 		nextHint: '< 6 min',
-		colorLight: { bg: '#FEF9EE', border: '#E8CA80' },
-		colorDark: { bg: '#332B18', border: '#8A722E' },
+		tone: 'hard',
 		hapticType: 'warning'
 	},
 	{
 		ease: 3,
 		label: 'Good',
 		nextHint: '10 min',
-		colorLight: { bg: '#F0F8F5', border: '#80CCA8' },
-		colorDark: { bg: '#183328', border: '#2E805A' },
+		tone: 'good',
 		hapticType: 'medium'
 	},
 	{
 		ease: 4,
 		label: 'Easy',
 		nextHint: '4 days',
-		colorLight: { bg: '#EBF5F3', border: '#60B69F' },
-		colorDark: { bg: '#152B24', border: '#266B59' },
+		tone: 'easy',
 		hapticType: 'success'
 	}
 ] as const;

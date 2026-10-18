@@ -4,7 +4,7 @@ import type { AppTheme } from '$lib/types';
 
 export const STATUS_BAR_THEMES = {
 	light: {
-		color: '#F8F6F0',
+		color: '#F7F5F0',
 		style: Style.Light
 	},
 	dark: {

@@ -69,10 +69,12 @@
 	}
 
 	function getStrokeColor(): string {
-		if (typeof document !== 'undefined' && document.documentElement.classList.contains('dark')) {
-			return '#f3ede2'; // Warm hanji light ink in dark mode
-		}
-		return '#22201e'; // Sumi ink charcoal black in light mode
+		if (typeof document === 'undefined') return '#1b1a18';
+		// The Scratch pad writes in the Theme's primary ink.
+		const ink = getComputedStyle(document.documentElement)
+			.getPropertyValue('--text-primary')
+			.trim();
+		return ink || '#1b1a18';
 	}
 
 	function drawLine(
@@ -207,7 +209,7 @@
 	<div class="relative h-44 w-full bg-surface sm:h-52">
 		<!-- Subtle background grid lines for Hangul syllable spacing -->
 		<div
-			class="pointer-events-none absolute inset-0 bg-[radial-gradient(#22201e_1px,transparent_1px)] [background-size:24px_24px] opacity-[0.06] dark:bg-[radial-gradient(#f3ede2_1px,transparent_1px)]"
+			class="pointer-events-none absolute inset-0 bg-[radial-gradient(var(--text-primary)_1px,transparent_1px)] [background-size:24px_24px] opacity-[0.06]"
 		></div>
 
 		<canvas
