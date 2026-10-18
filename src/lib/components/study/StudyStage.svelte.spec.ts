@@ -4,9 +4,12 @@
  * stage with that session and the Deck it studies (null for the due queue).
  */
 import { beforeEach, expect, test, vi } from 'vitest';
+import { page } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
+import '../../../routes/layout.css';
 import StudyStage from './StudyStage.svelte';
 import ExitStudyModal from './ExitStudyModal.svelte';
+import { longGrammarCard } from './flashcardFixtures';
 import { StudySessionStore } from '$lib/stores/study.svelte';
 import { modal } from '$lib/stores/modal.svelte';
 import type { StudyDeviceSource } from '$lib/study/deviceSource';
@@ -160,3 +163,57 @@ test('confirms before leaving the due queue and returns Home', async () => {
 	await vi.waitFor(() => expect(vi.mocked(goto)).toHaveBeenCalledWith('/'));
 	expect(session.isActive).toBe(false);
 });
+
+for (const expanded of [false, true]) {
+	test(`keeps a long grammar Card clear of the Grade buttons and operable when ${expanded ? 'expanded' : 'collapsed'}`, async () => {
+		await page.viewport(390, 844);
+		const session = createSession([heldDeck(10, [longGrammarCard()])]);
+		await session.start({ deckId: 10 });
+
+		const screen = render(StudyStage, { props: { session, deckId: 10 } });
+
+		await screen.getByRole('button', { name: /Reveal Meaning/ }).click();
+
+		if (expanded) {
+			// Expanding the excerpts may scroll the page, but they still cannot cover the Grades.
+			await screen.getByRole('button', { name: 'Show more', exact: true }).click();
+		}
+
+		const cardElement = screen.getByRole('region', { name: /Flashcard/ }).element() as HTMLElement;
+		const revealedExample = screen
+			.getByText(/attaches to the stem and expresses an inference/)
+			.elements()
+			.at(-1) as HTMLElement;
+		const gradeBar = screen
+			.getByRole('group', { name: /Rate your recall/i })
+			.element() as HTMLElement;
+		// Card content — not merely the Card's box — stays inside the Card, and the
+		// Card ends above the Grade buttons.
+		const clearOfGrades = () => {
+			const cardRect = cardElement.getBoundingClientRect();
+			const gradeTop = gradeBar.getBoundingClientRect().top;
+			return (
+				revealedExample.getBoundingClientRect().bottom <= cardRect.bottom + 0.5 &&
+				cardRect.bottom <= gradeTop + 0.5
+			);
+		};
+
+		await expect.poll(clearOfGrades).toBe(true);
+
+		if (!expanded) {
+			// Collapsed, the Card and the Grade buttons fit the screen, so they stay in the thumb zone.
+			expect(document.documentElement.scrollHeight).toBeLessThanOrEqual(window.innerHeight + 1);
+			expect(gradeBar.getBoundingClientRect().bottom).toBeLessThanOrEqual(window.innerHeight + 1);
+		}
+
+		for (const grade of ['Again', 'Hard', 'Good', 'Easy']) {
+			await expect
+				.element(screen.getByRole('button', { name: new RegExp(`^${grade}`) }))
+				.toBeVisible();
+		}
+
+		// Operable in this state: the click reaches the Grade button, not the Card.
+		await screen.getByRole('button', { name: /^Good/ }).click();
+		await vi.waitFor(() => expect(vi.mocked(goto)).toHaveBeenCalledWith('/study/summary'));
+	});
+}
