@@ -13,6 +13,7 @@
 	let isAddingReview = $state(false);
 	let isAddedLocally = $state(false);
 	let isAddedToReview = $derived(isAddedLocally || (card.isReviewed ?? false));
+	let isContextExpanded = $state(false);
 
 	async function handleAddToReview(e: MouseEvent) {
 		e.stopPropagation();
@@ -31,14 +32,15 @@
 </script>
 
 <div
-	class="flex w-full items-center justify-between gap-3 rounded-xl border border-border-subtle bg-surface p-3.5 text-left shadow-xs transition hover:border-border-strong"
+	role="listitem"
+	class="flex w-full min-w-0 items-center justify-between gap-3 rounded-xl border border-border-subtle bg-surface p-3.5 text-left shadow-xs transition hover:border-border-strong"
 >
 	<div class="min-w-0 flex-1">
-		<div class="flex items-baseline gap-2">
-			<span class="hangul-text text-base font-bold break-keep text-ink-primary">
+		<div class="flex min-w-0 flex-wrap items-baseline gap-x-2">
+			<span class="hangul-text min-w-0 text-base font-bold text-ink-primary">
 				{card.koreanWord}
 			</span>
-			<span class="truncate text-sm text-ink-secondary">
+			<span class="min-w-24 flex-1 truncate text-sm text-ink-secondary">
 				{card.englishWord}
 			</span>
 		</div>
@@ -48,17 +50,29 @@
 				{card.example}
 			</p>
 		{/if}
+
+		{#if card.context}
+			<!-- One ellipsized line; hover shows the note, and focus expands it in place.
+			     The button keeps a 48px touch area while the chip stays one line tall. -->
+			<button
+				type="button"
+				class="group mt-1 flex min-h-12 w-full max-w-full items-center text-left"
+				title={card.context}
+				aria-expanded={isContextExpanded}
+				onclick={() => (isContextExpanded = !isContextExpanded)}
+			>
+				<span
+					class="block w-full min-w-0 rounded-md border border-border-subtle bg-canvas px-2 py-0.5 text-[11px] font-semibold text-ink-secondary group-focus:wrap-anywhere group-focus:whitespace-pre-wrap group-focus-visible:outline-2 group-focus-visible:outline-offset-2 group-focus-visible:outline-primary {isContextExpanded
+						? 'wrap-anywhere whitespace-pre-wrap'
+						: 'truncate'}"
+				>
+					{card.context}
+				</span>
+			</button>
+		{/if}
 	</div>
 
 	<div class="flex shrink-0 items-center gap-2">
-		{#if card.context}
-			<span
-				class="rounded-md border border-border-subtle bg-canvas px-2 py-0.5 text-[11px] font-semibold text-ink-secondary"
-			>
-				{card.context}
-			</span>
-		{/if}
-
 		{#if !isAddedToReview}
 			<button
 				type="button"
