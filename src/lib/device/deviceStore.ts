@@ -15,6 +15,13 @@ const DATABASE_NAME = 'voabkr-device';
 // database already opened at 2 by either change gains the other store.
 const DATABASE_VERSION = 3;
 
+/**
+ * How long an upgrade blocked by another connection waits for it to close
+ * before the open fails. A tab that handles `versionchange` closes at once, so
+ * this only elapses when the other tab is holding the old version.
+ */
+const BLOCKED_UPGRADE_TIMEOUT_MS = 2000;
+
 const CARDS = 'cards';
 const SCHEDULES = 'schedules';
 const HELD_DECKS = 'heldDecks';
@@ -78,6 +85,30 @@ export interface GradeToAppend {
 	schedule: ReviewSchedule | null;
 }
 
+/** Options for opening the device store. */
+export interface DeviceStoreOpenOptions {
+	/**
+	 * How long an upgrade blocked by another connection waits before it fails.
+	 * Overridable so a test does not have to sit out the real bound.
+	 */
+	blockedTimeoutMs?: number;
+}
+
+/**
+ * The store could not open because another connection holds an older version
+ * and did not close when asked to upgrade. Distinct from IndexedDB being
+ * unavailable: here the store exists and only the other tab is in the way.
+ */
+export class DeviceStoreBlockedError extends Error {
+	constructor() {
+		super(
+			'The device store could not be opened because another voabkr tab or window ' +
+				'is holding an older version. Close the other tab or window and try again.'
+		);
+		this.name = 'DeviceStoreBlockedError';
+	}
+}
+
 export class DeviceStore {
 	readonly #db: IDBDatabase;
 
@@ -86,11 +117,14 @@ export class DeviceStore {
 	}
 
 	/** Opens the store, creating it on first use, and takes in the old queue. */
-	static async open(name: string = DATABASE_NAME): Promise<DeviceStore> {
+	static async open(
+		name: string = DATABASE_NAME,
+		options: DeviceStoreOpenOptions = {}
+	): Promise<DeviceStore> {
 		if (typeof indexedDB === 'undefined') {
 			throw new Error('IndexedDB is not available on this device');
 		}
-		const store = new DeviceStore(await openDatabase(name));
+		const store = new DeviceStore(await openDatabase(name, options));
 		await store.#migrateLegacyQueue();
 		return store;
 	}
@@ -401,10 +435,23 @@ export class DeviceStore {
 	}
 }
 
-/** Opens the IndexedDB database, creating its stores on first use. */
-function openDatabase(name: string): Promise<IDBDatabase> {
+/**
+ * Opens the IndexedDB database, creating its stores on first use. The
+ * connection closes itself when another tab asks for a version upgrade, and an
+ * upgrade blocked by a connection that does not close fails after a bounded
+ * wait rather than staying pending.
+ */
+function openDatabase(name: string, options: DeviceStoreOpenOptions): Promise<IDBDatabase> {
 	return new Promise((resolve, reject) => {
 		const request = indexedDB.open(name, DATABASE_VERSION);
+		let settled = false;
+		let blockedTimer: ReturnType<typeof setTimeout> | undefined;
+
+		const fail = (error: unknown) => {
+			settled = true;
+			if (blockedTimer !== undefined) clearTimeout(blockedTimer);
+			reject(error);
+		};
 
 		request.onupgradeneeded = () => {
 			const db = request.result;
@@ -431,8 +478,35 @@ function openDatabase(name: string): Promise<IDBDatabase> {
 			}
 		};
 
-		request.onsuccess = () => resolve(request.result);
-		request.onerror = () => reject(request.error);
+		// Another connection holds an older version. It is given a moment to
+		// close on its version-change request; if it does not, the open fails
+		// instead of staying pending forever.
+		request.onblocked = () => {
+			if (blockedTimer !== undefined) return;
+			blockedTimer = setTimeout(
+				() => fail(new DeviceStoreBlockedError()),
+				options.blockedTimeoutMs ?? BLOCKED_UPGRADE_TIMEOUT_MS
+			);
+		};
+
+		request.onsuccess = () => {
+			const db = request.result;
+			if (settled) {
+				// The open was already reported as blocked; release the
+				// connection that arrived too late.
+				db.close();
+				return;
+			}
+			settled = true;
+			if (blockedTimer !== undefined) clearTimeout(blockedTimer);
+			// Another tab asking for an upgrade is not held up by this one.
+			db.onversionchange = () => db.close();
+			resolve(db);
+		};
+
+		request.onerror = () => {
+			if (!settled) fail(request.error);
+		};
 	});
 }
 
