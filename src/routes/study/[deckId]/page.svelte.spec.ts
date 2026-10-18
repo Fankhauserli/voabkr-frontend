@@ -25,7 +25,13 @@ vi.mock('$lib/stores/syncQueue.svelte', () => ({
 }));
 vi.mock('$lib/api/decks', () => ({
 	deckApi: {
-		getDeckById: vi.fn(async () => ({ id: 10, name: '한국어 기초', type: 'vocabulary' }))
+		getDeckById: vi.fn(async () => ({
+			id: 10,
+			name: '한국어 기초',
+			type: 'vocabulary',
+			cardCount: 0,
+			dueCount: 0
+		}))
 	}
 }));
 vi.mock('$lib/api/cards', () => ({ cardApi: { getCards: vi.fn(async () => []) } }));
@@ -75,7 +81,9 @@ beforeEach(() => {
 	vi.mocked(deckApi.getDeckById).mockResolvedValue({
 		id: 10,
 		name: '한국어 기초',
-		type: 'vocabulary'
+		type: 'vocabulary',
+		cardCount: 0,
+		dueCount: 0
 	});
 	vi.mocked(cardApi.getCards).mockResolvedValue([]);
 	vi.mocked(downloadedDecks.isHeld).mockReturnValue(false);
