@@ -32,26 +32,29 @@ const wireSchedule = {
 /** A push endpoint a test drives: it records every batch and answers as told. */
 class FakePushEndpoint implements GradePushEndpoint {
 	calls: GradeBatchEntry[][] = [];
-	results: GradeBatchResult[] = [];
 	error: Error | null = null;
+	#refuseIndex: number | null = null;
 
 	async pushGrades(grades: readonly GradeBatchEntry[]): Promise<readonly GradeBatchResult[]> {
 		this.calls.push(grades.map((grade) => ({ ...grade })));
 		if (this.error) throw this.error;
-		if (this.results.length === grades.length) return this.results;
-		return grades.map(() => ({ accepted: true }));
+		return grades.map((grade, index) =>
+			index === this.#refuseIndex
+				? { cardId: grade.cardId, accepted: false, reason: 'refused by the fake' }
+				: { cardId: grade.cardId, accepted: true }
+		);
 	}
 
 	/** Accepts every Grade in the batch. */
 	acceptAll(): void {
 		this.error = null;
-		this.results = [];
+		this.#refuseIndex = null;
 	}
 
 	/** Refuses the Grade at the given index and accepts the rest. */
-	refuseOnly(index: number, batchSize: number): void {
+	refuseOnly(index: number): void {
 		this.error = null;
-		this.results = Array.from({ length: batchSize }, (_, i) => ({ accepted: i !== index }));
+		this.#refuseIndex = index;
 	}
 }
 
@@ -169,7 +172,7 @@ describe('ReviewSyncQueue', () => {
 		expect(queue.pendingCount).toBe(3);
 
 		setOnline(true);
-		endpoint.refuseOnly(1, 3);
+		endpoint.refuseOnly(1);
 
 		await queue.pushGrades(endpoint);
 
@@ -195,7 +198,7 @@ describe('ReviewSyncQueue', () => {
 		await queue.addReview(2, 3, ANSWERED_AT);
 
 		setOnline(true);
-		endpoint.refuseOnly(0, 2);
+		endpoint.refuseOnly(0);
 		await queue.pushGrades(endpoint);
 		expect(queue.parkedCount).toBe(1);
 
@@ -352,7 +355,7 @@ describe('ReviewSyncQueue', () => {
 		await queue.addReview(99, 3, ANSWERED_AT);
 		await queue.addReview(100, 3, ANSWERED_AT);
 		setOnline(true);
-		endpoint.refuseOnly(0, 2);
+		endpoint.refuseOnly(0);
 		await queue.pushGrades(endpoint);
 		expect(queue.parkedCount).toBe(1);
 
