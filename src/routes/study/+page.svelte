@@ -32,8 +32,13 @@
 
 	/** Re-attempts the store open, then the sitting, without a page reload. */
 	async function retry() {
-		// A store that is still blocked reports itself again when the sitting reads it.
-		await reopenDeviceStores().catch(() => {});
+		try {
+			await reopenDeviceStores();
+		} catch {
+			// Still blocked: keep the way back rather than start with a consumer missing.
+			studySession.blockedByDeviceStore();
+			return;
+		}
 		await startSitting();
 	}
 </script>

@@ -76,12 +76,7 @@ export class DeviceStudySource implements StudyDeviceSource {
 
 	/** Closes the device store, ending this view's use of it. */
 	async close(): Promise<void> {
-		if (!this.#connection) return;
-		try {
-			(await this.#connection.current())?.close();
-		} catch {
-			// The store never opened, so there is no connection to release.
-		}
+		await this.#connection?.close();
 	}
 
 	async #store(): Promise<DeviceStore | null> {

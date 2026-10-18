@@ -61,6 +61,9 @@ beforeEach(() => {
 	studySession.reset();
 	vi.mocked(deviceStudySource.readDecks).mockResolvedValue([]);
 	vi.mocked(deviceStudySource.readNewCardsIntroduced).mockResolvedValue(0);
+	vi.mocked(deviceStudySource.reopen).mockResolvedValue(undefined);
+	vi.mocked(downloadedDecks.reopen).mockResolvedValue(undefined);
+	vi.mocked(reviewSync.reopen).mockResolvedValue(undefined);
 });
 
 test('says the device store is blocked and starts the sitting when Retry can open it', async () => {
@@ -84,4 +87,29 @@ test('says the device store is blocked and starts the sitting when Retry can ope
 	expect(deviceStudySource.reopen).toHaveBeenCalledOnce();
 	expect(downloadedDecks.reopen).toHaveBeenCalledOnce();
 	expect(reviewSync.reopen).toHaveBeenCalledOnce();
+});
+
+test('keeps the way back when Retry cannot reopen every consumer', async () => {
+	vi.mocked(deviceStudySource.readDecks).mockRejectedValueOnce(new DeviceStoreBlockedError());
+	vi.mocked(reviewSync.reopen).mockRejectedValue(new DeviceStoreBlockedError());
+
+	const screen = render(StudyDuePage);
+
+	await expect
+		.element(screen.getByRole('heading', { name: /other voabkr tab or window/i }))
+		.toBeVisible();
+
+	// The device source can open now, but the Grade queue is still blocked.
+	vi.mocked(deviceStudySource.readDecks).mockResolvedValue(heldDeck([card(1)]));
+
+	await screen.getByRole('button', { name: 'Try again' }).click();
+
+	await vi.waitFor(() => expect(reviewSync.reopen).toHaveBeenCalledOnce());
+	await expect
+		.element(screen.getByRole('heading', { name: /other voabkr tab or window/i }))
+		.toBeVisible();
+	expect(studySession.storeBlocked).toBe(true);
+	expect(studySession.totalCards).toBe(0);
+	// The sitting never read the device after an incomplete Retry.
+	expect(deviceStudySource.readDecks).toHaveBeenCalledOnce();
 });

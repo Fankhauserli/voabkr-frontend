@@ -7,8 +7,6 @@ export type DeviceStoreOpener = () => Promise<DeviceStore>;
 export interface DeviceStoreConnectionOptions {
 	/** The database to open; the app's own store by default. */
 	databaseName?: string;
-	/** How long a blocked upgrade waits before failing; overridable for tests. */
-	blockedTimeoutMs?: number;
 	/** Opens the store; the real IndexedDB store by default. */
 	openStore?: DeviceStoreOpener;
 }
@@ -27,10 +25,7 @@ export class DeviceStoreConnection {
 	#blocked: DeviceStoreBlockedError | null = null;
 
 	constructor(options: DeviceStoreConnectionOptions = {}) {
-		this.#openStore =
-			options.openStore ??
-			(() =>
-				DeviceStore.open(options.databaseName, { blockedTimeoutMs: options.blockedTimeoutMs }));
+		this.#openStore = options.openStore ?? (() => DeviceStore.open(options.databaseName));
 		this.#store = this.#attempt();
 	}
 
@@ -57,6 +52,11 @@ export class DeviceStoreConnection {
 		previous?.close();
 		this.#store = this.#attempt();
 		return this.current();
+	}
+
+	/** Releases the connection; a blocked or failed open has none to release. */
+	async close(): Promise<void> {
+		(await this.#store)?.close();
 	}
 
 	async #attempt(): Promise<DeviceStore | null> {

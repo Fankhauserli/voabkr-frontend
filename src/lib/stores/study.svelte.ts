@@ -253,7 +253,7 @@ class StudySessionStore {
 			return plan.cards.length > 0;
 		} catch (err: unknown) {
 			if (err instanceof DeviceStoreBlockedError) {
-				this.storeBlocked = true;
+				this.blockedByDeviceStore();
 			} else {
 				this.error = err instanceof Error ? err.message : 'Failed to load the Cards on this device';
 			}
@@ -361,6 +361,15 @@ class StudySessionStore {
 
 	clearScratchPad(): void {
 		this.scratchPadRevision += 1;
+	}
+
+	/**
+	 * Ends any sitting and reports that another voabkr tab or window holds the
+	 * device store, so the stage offers the way back instead of empty states.
+	 */
+	blockedByDeviceStore(): void {
+		this.reset();
+		this.storeBlocked = true;
 	}
 
 	reset(): void {

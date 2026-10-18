@@ -123,7 +123,7 @@ export class DownloadedDecks {
 	async close(): Promise<void> {
 		if (!this.#connection) return;
 		await this.#ready.catch(() => {});
-		(await this.#connection.current())?.close();
+		await this.#connection.close();
 	}
 
 	/** Reads the store's held Decks into the view, replacing what it showed. */

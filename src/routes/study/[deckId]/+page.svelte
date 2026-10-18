@@ -53,10 +53,10 @@
 			// The Session queue is assembled from the device's copy, online or not.
 			await studySession.start({ deckId });
 		} catch (err: unknown) {
-			studySession.reset();
 			if (err instanceof DeviceStoreBlockedError) {
-				studySession.storeBlocked = true;
+				studySession.blockedByDeviceStore();
 			} else {
+				studySession.reset();
 				studySession.error = err instanceof Error ? err.message : 'Failed to load deck cards';
 			}
 		} finally {
@@ -66,8 +66,13 @@
 
 	/** Re-attempts the store open, then the Deck's load, without a page reload. */
 	async function retry() {
-		// A store that is still blocked reports itself again when the load reads it.
-		await reopenDeviceStores().catch(() => {});
+		try {
+			await reopenDeviceStores();
+		} catch {
+			// Still blocked: keep the way back rather than start with a consumer missing.
+			studySession.blockedByDeviceStore();
+			return;
+		}
 		await loadDeck();
 	}
 </script>

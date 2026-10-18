@@ -216,7 +216,7 @@ class ReviewSyncQueue {
 	async close(): Promise<void> {
 		if (!this.#connection) return;
 		await this.#ready.catch(() => {});
-		(await this.#connection.current())?.close();
+		await this.#connection.close();
 	}
 
 	async #push(endpoint: GradePushEndpoint): Promise<GradePushOutcome> {
@@ -295,15 +295,12 @@ class ReviewSyncQueue {
 		await this.#readQueue(await this.#connection.current());
 	}
 
-	/** Reads the store's Grades into the queue, keeping any this sitting cannot persist. */
+	/** Reads the store's Grades into the queue. */
 	async #readQueue(store: DeviceStore | null): Promise<void> {
 		if (!store) return;
 		try {
 			const grades = await store.readQueuedGrades();
-			// A Grade recorded while the store was unavailable has a negative id no
-			// stored Grade can carry, and must not be lost by re-hydrating.
-			const unpersisted = this.#queue.filter((grade) => grade.id < 0);
-			this.#queue = [...grades.filter((grade) => !grade.parked), ...unpersisted];
+			this.#queue = grades.filter((grade) => !grade.parked);
 			this.#parked = grades.filter((grade) => grade.parked);
 		} catch (error) {
 			console.error('[SyncQueue] Failed to read the queue from the device store:', error);
