@@ -284,7 +284,7 @@ function toBatchEntry(grade: QueuedGrade): GradeBatchEntry {
 		cardId: grade.cardId,
 		grade: grade.grade,
 		answeredAt: grade.answeredAt.toISOString(),
-		reviewSchedule: toSchedulePayload(grade.schedule)
+		schedule: toSchedulePayload(grade.schedule)
 	};
 }
 
