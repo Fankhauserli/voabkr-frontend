@@ -1,6 +1,10 @@
 import { SvelteDate, SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { syncApi } from '$lib/api/sync';
-import { DeviceStore, type QueuedGrade } from '$lib/device/deviceStore';
+import type { DeviceStore, QueuedGrade } from '$lib/device/deviceStore';
+import {
+	DeviceStoreConnection,
+	type DeviceStoreConnectionOptions
+} from '$lib/device/deviceStoreConnection';
 import type { ReviewSchedule } from '$lib/scheduling/reviewSchedule';
 import {
 	toSchedulePayload,
@@ -11,8 +15,7 @@ import {
 import type { SM2Rating } from '$lib/types';
 
 /** The queue's store and endpoint, overridable so a test can supply its own. */
-export interface ReviewSyncQueueOptions {
-	databaseName?: string;
+export interface ReviewSyncQueueOptions extends DeviceStoreConnectionOptions {
 	pushEndpoint?: GradePushEndpoint;
 }
 
@@ -33,8 +36,8 @@ export interface AddReviewResult {
  * sent with it.
  */
 class ReviewSyncQueue {
-	readonly #store: Promise<DeviceStore | null>;
-	readonly #ready: Promise<void>;
+	readonly #connection: DeviceStoreConnection | null;
+	#ready: Promise<void>;
 	readonly #pushEndpoint: GradePushEndpoint;
 	#queue = $state<QueuedGrade[]>([]);
 	#parked = $state<QueuedGrade[]>([]);
@@ -49,20 +52,24 @@ class ReviewSyncQueue {
 		this.#pushEndpoint = options.pushEndpoint ?? syncApi;
 
 		if (typeof window === 'undefined') {
-			this.#store = Promise.resolve(null);
+			this.#connection = null;
 			this.#ready = Promise.resolve();
 			return;
 		}
 
 		this.isOnline = navigator.onLine;
-		this.#store = DeviceStore.open(options.databaseName).catch((error) => {
-			console.error('[SyncQueue] Failed to open the device store:', error);
-			return null;
-		});
+		this.#connection = new DeviceStoreConnection(options);
 		this.#ready = this.#hydrate();
+		// A blocked open must not surface as an unhandled rejection while no
+		// Sync or Study session is reading the queue.
+		this.#ready.catch(() => {});
 	}
 
-	/** Resolves once the queue has been read from the device store. */
+	/**
+	 * Resolves once the queue has been read from the device store. It rejects
+	 * with DeviceStoreBlockedError while another tab or window holds an older
+	 * version, so a caller can offer a Retry rather than an empty queue.
+	 */
 	public get ready(): Promise<void> {
 		return this.#ready;
 	}
@@ -70,7 +77,19 @@ class ReviewSyncQueue {
 	/** The device store this queue reads and writes, once it has opened. */
 	public async device(): Promise<DeviceStore | null> {
 		await this.#ready;
-		return this.#store;
+		return this.#connection ? this.#connection.current() : null;
+	}
+
+	/**
+	 * Re-attempts the store open and re-reads the Grade queue, as the Study
+	 * stage's Retry does once the other tab or window is closed. Throws
+	 * DeviceStoreBlockedError when the store is still in the way.
+	 */
+	public async reopen(): Promise<void> {
+		if (!this.#connection) return;
+		this.#ready = this.#connection.reopen().then((store) => this.#readQueue(store));
+		this.#ready.catch(() => {});
+		await this.#ready;
 	}
 
 	/** Grades waiting for the backend; parked Grades are not counted. */
@@ -130,7 +149,7 @@ class ReviewSyncQueue {
 	): Promise<AddReviewResult> {
 		await this.#ready;
 		const learnerId = this.#learnerId;
-		const store = await this.#store;
+		const store = await this.#store();
 		let queued: QueuedGrade;
 		if (store) {
 			queued = await store.appendQueuedGrade({ learnerId, cardId, grade, answeredAt, schedule });
@@ -185,7 +204,7 @@ class ReviewSyncQueue {
 	async clear(): Promise<void> {
 		await this.#ready;
 		const ids = [...this.#queue, ...this.#parked].map((item) => item.id);
-		const store = await this.#store;
+		const store = await this.#store();
 		if (store) {
 			await store.removeQueuedGrades(ids);
 		}
@@ -195,8 +214,9 @@ class ReviewSyncQueue {
 
 	/** Closes the device store, ending this queue's use of it. */
 	async close(): Promise<void> {
-		await this.#ready;
-		(await this.#store)?.close();
+		if (!this.#connection) return;
+		await this.#ready.catch(() => {});
+		await this.#connection.close();
 	}
 
 	async #push(endpoint: GradePushEndpoint): Promise<GradePushOutcome> {
@@ -233,7 +253,7 @@ class ReviewSyncQueue {
 				// later Sync asks again rather than losing it or parking it.
 			});
 
-			const store = await this.#store;
+			const store = await this.#store();
 			if (store) {
 				if (accepted.size > 0) {
 					await store.removeQueuedGrades([...accepted]);
@@ -265,8 +285,18 @@ class ReviewSyncQueue {
 		}
 	}
 
+	/** The open store, or null where a store failure only means degraded storage. */
+	async #store(): Promise<DeviceStore | null> {
+		return this.#connection ? this.#connection.current() : null;
+	}
+
 	async #hydrate(): Promise<void> {
-		const store = await this.#store;
+		if (!this.#connection) return;
+		await this.#readQueue(await this.#connection.current());
+	}
+
+	/** Reads the store's Grades into the queue. */
+	async #readQueue(store: DeviceStore | null): Promise<void> {
 		if (!store) return;
 		try {
 			const grades = await store.readQueuedGrades();

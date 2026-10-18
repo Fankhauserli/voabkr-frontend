@@ -7,8 +7,10 @@ import { render } from 'vitest-browser-svelte';
 import StudyDeckPage from './+page.svelte';
 import { cardApi } from '$lib/api/cards';
 import { deckApi } from '$lib/api/decks';
+import { DeviceStoreBlockedError } from '$lib/device/deviceStore';
 import { downloadedDecks } from '$lib/device/downloadedDecks.svelte';
 import { deviceStudySource } from '$lib/study/deviceSource';
+import { reviewSync } from '$lib/stores/syncQueue.svelte';
 import type { DeckContents } from '$lib/study/queueAssembly';
 import { studySession } from '$lib/stores/study.svelte';
 import type { Card } from '$lib/types';
@@ -21,7 +23,10 @@ vi.mock('$lib/utils/backButton', () => ({
 // The page drives the real Study session singleton, whose Grades would otherwise
 // be sent over the network; stand in for the offline sync queue.
 vi.mock('$lib/stores/syncQueue.svelte', () => ({
-	reviewSync: { addReview: vi.fn(async () => ({ synced: true })) }
+	reviewSync: {
+		addReview: vi.fn(async () => ({ synced: true })),
+		reopen: vi.fn(async () => {})
+	}
 }));
 vi.mock('$lib/api/decks', () => ({
 	deckApi: {
@@ -38,6 +43,7 @@ vi.mock('$lib/api/cards', () => ({ cardApi: { getCards: vi.fn(async () => []) } 
 vi.mock('$lib/device/downloadedDecks.svelte', () => ({
 	downloadedDecks: {
 		ready: Promise.resolve(),
+		reopen: vi.fn(async () => {}),
 		isHeld: vi.fn(() => false),
 		download: vi.fn(async () => {}),
 		readDeck: vi.fn(async () => ({ cards: [], schedules: new Map() }))
@@ -48,6 +54,7 @@ vi.mock('$lib/device/downloadedDecks.svelte', () => ({
 // below writes the downloaded Cards into it.
 vi.mock('$lib/study/deviceSource', () => ({
 	deviceStudySource: {
+		reopen: vi.fn(async () => {}),
 		readDecks: vi.fn(async () => []),
 		readNewCardsIntroduced: vi.fn(async () => 0),
 		recordNewCardIntroduced: vi.fn(async () => {}),
@@ -78,6 +85,11 @@ beforeEach(() => {
 	vi.clearAllMocks();
 	studySession.reset();
 	setOnline(true);
+	Object.defineProperty(downloadedDecks, 'ready', {
+		value: Promise.resolve(),
+		configurable: true,
+		writable: true
+	});
 	vi.mocked(deckApi.getDeckById).mockResolvedValue({
 		id: 10,
 		name: '한국어 기초',
@@ -194,6 +206,38 @@ test('drops the sitting in hand when the requested Deck needs a connection', asy
 	await expect.element(screen.getByText('This Deck needs a connection')).toBeVisible();
 	expect(studySession.isActive).toBe(false);
 	expect(studySession.currentCard).toBeNull();
+});
+
+test('says the device store is blocked and recovers the sitting when Retry can open it', async () => {
+	// Another tab holds an older store, so the held-Decks view cannot read it.
+	Object.defineProperty(downloadedDecks, 'ready', {
+		value: Promise.reject(new DeviceStoreBlockedError()),
+		configurable: true,
+		writable: true
+	});
+
+	const screen = render(StudyDeckPage);
+
+	await expect
+		.element(screen.getByRole('heading', { name: /other voabkr tab or window/i }))
+		.toBeVisible();
+	expect(studySession.storeBlocked).toBe(true);
+
+	// The learner closes the other tab; Retry reopens every consumer in place.
+	Object.defineProperty(downloadedDecks, 'ready', {
+		value: Promise.resolve(),
+		configurable: true,
+		writable: true
+	});
+	vi.mocked(downloadedDecks.isHeld).mockReturnValue(true);
+	vi.mocked(deviceStudySource.readDecks).mockResolvedValue(heldDeck([card(1)]));
+
+	await screen.getByRole('button', { name: 'Try again' }).click();
+
+	await vi.waitFor(() => expect(studySession.totalCards).toBe(1));
+	expect(downloadedDecks.reopen).toHaveBeenCalledOnce();
+	expect(deviceStudySource.reopen).toHaveBeenCalledOnce();
+	expect(reviewSync.reopen).toHaveBeenCalledOnce();
 });
 
 test('drops the sitting in hand when this Deck fails to load', async () => {

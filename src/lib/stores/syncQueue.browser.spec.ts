@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ReviewSyncQueue } from './syncQueue.svelte';
-import { DeviceStore } from '$lib/device/deviceStore';
+import { DeviceStore, DeviceStoreBlockedError } from '$lib/device/deviceStore';
 import type { ReviewSchedule } from '$lib/scheduling/reviewSchedule';
 import type { GradeBatchEntry, GradeBatchResult, GradePushEndpoint } from '$lib/sync/contract';
 
@@ -311,6 +311,40 @@ describe('ReviewSyncQueue', () => {
 
 		expect(endpoint.calls).toHaveLength(0);
 		expect(queue.pendingCount).toBe(1);
+	});
+
+	it('reopens the store and re-hydrates the Grade queue after another tab releases it', async () => {
+		// A Grade was queued by an earlier launch, then another tab blocked this one.
+		const seed = await DeviceStore.open(name);
+		await seed.appendQueuedGrade({
+			learnerId: 7,
+			cardId: 55,
+			grade: 3,
+			answeredAt: ANSWERED_AT,
+			schedule: null
+		});
+		seed.close();
+
+		await queue.close();
+		let attempts = 0;
+		queue = new ReviewSyncQueue({
+			databaseName: name,
+			pushEndpoint: endpoint,
+			openStore: async () => {
+				attempts += 1;
+				if (attempts === 1) throw new DeviceStoreBlockedError();
+				return DeviceStore.open(name);
+			}
+		});
+		queue.setLearner(7, true);
+
+		await expect(queue.ready).rejects.toBeInstanceOf(DeviceStoreBlockedError);
+		expect(queue.pendingCount).toBe(0);
+
+		await queue.reopen();
+
+		expect(queue.pendingCount).toBe(1);
+		expect(queue.items[0].cardId).toBe(55);
 	});
 
 	it('clears the queue, including parked Grades, and its stored records', async () => {

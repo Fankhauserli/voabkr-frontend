@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { Card, CardReviewSchedule } from '$lib/types';
+import { DeviceStore, DeviceStoreBlockedError } from './deviceStore';
 import { DownloadedDecks } from './downloadedDecks.svelte';
 
 /** A Card belonging to a Deck, carrying the Review schedule the backend serves. */
@@ -111,6 +112,33 @@ describe('DownloadedDecks', () => {
 		expect(decks.isHeld(20)).toBe(true);
 		// Sync already released the store; forgetting must only move the view, so
 		// the Cards are still there for the store to release exactly once.
+		expect((await decks.readDeck(10)).cards.map((held) => held.id)).toEqual([1]);
+	});
+
+	it('reopens the store and re-hydrates the held Decks after another tab releases it', async () => {
+		// A Deck was held by an earlier launch, then another tab blocked this one.
+		const seed = await DeviceStore.open(name);
+		await seed.saveCards([card(1, 10)]);
+		await seed.holdDeck(10);
+		seed.close();
+
+		await decks.close();
+		let attempts = 0;
+		decks = new DownloadedDecks({
+			databaseName: name,
+			openStore: async () => {
+				attempts += 1;
+				if (attempts === 1) throw new DeviceStoreBlockedError();
+				return DeviceStore.open(name);
+			}
+		});
+
+		await expect(decks.ready).rejects.toBeInstanceOf(DeviceStoreBlockedError);
+		expect(decks.isHeld(10)).toBe(false);
+
+		await decks.reopen();
+
+		expect(decks.isHeld(10)).toBe(true);
 		expect((await decks.readDeck(10)).cards.map((held) => held.id)).toEqual([1]);
 	});
 });

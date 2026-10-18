@@ -1,4 +1,8 @@
-import { DeviceStore } from '$lib/device/deviceStore';
+import type { DeviceStore } from '$lib/device/deviceStore';
+import {
+	DeviceStoreConnection,
+	type DeviceStoreConnectionOptions
+} from '$lib/device/deviceStoreConnection';
 import type { ReviewSchedule } from '$lib/scheduling/reviewSchedule';
 import type { DeckContents } from './queueAssembly';
 
@@ -19,23 +23,22 @@ export interface StudyDeviceSource {
 	writeSchedule(cardId: number, schedule: ReviewSchedule): Promise<void>;
 }
 
-/** The Study session's view of the device store, opened lazily on first use. */
-class DeviceStudySource implements StudyDeviceSource {
-	readonly #store: Promise<DeviceStore | null>;
+/**
+ * The Study session's view of the device store, opened lazily on first use.
+ *
+ * A blocked open is reported to the caller rather than hidden, so the Study
+ * stage can say another tab or window is in the way and Retry can re-open the
+ * store in place.
+ */
+export class DeviceStudySource implements StudyDeviceSource {
+	readonly #connection: DeviceStoreConnection | null;
 
-	constructor() {
-		if (typeof indexedDB === 'undefined') {
-			this.#store = Promise.resolve(null);
-			return;
-		}
-		this.#store = DeviceStore.open().catch((error) => {
-			console.error('[DeviceStudySource] Failed to open the device store:', error);
-			return null;
-		});
+	constructor(options: DeviceStoreConnectionOptions = {}) {
+		this.#connection = typeof indexedDB === 'undefined' ? null : new DeviceStoreConnection(options);
 	}
 
 	async readDecks(deckId?: number): Promise<DeckContents[]> {
-		const store = await this.#store;
+		const store = await this.#store();
 		if (!store) return [];
 
 		// listHeldDecks returns Deck ids in order, and readDeck returns each
@@ -47,18 +50,37 @@ class DeviceStudySource implements StudyDeviceSource {
 	}
 
 	async readNewCardsIntroduced(dayStart: Date): Promise<number> {
-		const store = await this.#store;
+		const store = await this.#store();
 		return store ? store.readNewCardsIntroduced(dayStart) : 0;
 	}
 
 	async recordNewCardIntroduced(dayStart: Date, cardId: number): Promise<void> {
-		const store = await this.#store;
+		const store = await this.#store();
 		if (store) await store.recordNewCardIntroduced(dayStart, cardId);
 	}
 
 	async writeSchedule(cardId: number, schedule: ReviewSchedule): Promise<void> {
-		const store = await this.#store;
+		const store = await this.#store();
 		if (store) await store.writeSchedule(cardId, schedule);
+	}
+
+	/**
+	 * Re-attempts the store open, as the Study stage's Retry does once the other
+	 * tab or window is closed. Throws DeviceStoreBlockedError when it is still
+	 * in the way.
+	 */
+	async reopen(): Promise<void> {
+		if (!this.#connection) return;
+		await this.#connection.reopen();
+	}
+
+	/** Closes the device store, ending this view's use of it. */
+	async close(): Promise<void> {
+		await this.#connection?.close();
+	}
+
+	async #store(): Promise<DeviceStore | null> {
+		return this.#connection ? this.#connection.current() : null;
 	}
 }
 

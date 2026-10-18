@@ -108,6 +108,26 @@ test('says the due queue has no Cards due and offers the Library and Home', asyn
 	expect(screen.getByText('This Deck is Empty').elements()).toHaveLength(0);
 });
 
+test('says another voabkr tab or window is in the way and retries when asked', async () => {
+	const session = createSession([]);
+	await session.start();
+	session.storeBlocked = true;
+
+	const onRetry = vi.fn();
+	const screen = render(StudyStage, { props: { session, deckId: null, onRetry } });
+
+	await expect
+		.element(screen.getByRole('heading', { name: /other voabkr tab or window/i }))
+		.toBeVisible();
+	await expect.element(screen.getByText(/Close the other tab or window/)).toBeVisible();
+	// The blocked store is not a sitting with nothing due.
+	expect(screen.getByText('No Cards Due').elements()).toHaveLength(0);
+
+	await screen.getByRole('button', { name: 'Try again' }).click();
+
+	expect(onRetry).toHaveBeenCalledOnce();
+});
+
 test('confirms before leaving a Deck sitting and returns to that Deck', async () => {
 	const session = createSession([heldDeck(10, [card(1)])]);
 	await session.start({ deckId: 10 });
