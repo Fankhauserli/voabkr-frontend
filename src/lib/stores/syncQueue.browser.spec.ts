@@ -21,6 +21,14 @@ const schedule = (): ReviewSchedule => ({
 	nextReviewAt: new Date(2026, 9, 18, 9, 0)
 });
 
+/** That schedule as it crosses the wire, under the backend's `schedule` field. */
+const wireSchedule = {
+	interval: 1,
+	efactor: 2.5,
+	repetitions: 1,
+	nextReviewAt: new Date(2026, 9, 18, 9, 0).toISOString()
+};
+
 /** A push endpoint a test drives: it records every batch and answers as told. */
 class FakePushEndpoint implements GradePushEndpoint {
 	calls: GradeBatchEntry[][] = [];
@@ -89,12 +97,7 @@ describe('ReviewSyncQueue', () => {
 				cardId: 101,
 				grade: 4,
 				answeredAt: ANSWERED_AT.toISOString(),
-				reviewSchedule: {
-					interval: 1,
-					efactor: 2.5,
-					repetitions: 1,
-					nextReviewAt: new Date(2026, 9, 18, 9, 0).toISOString()
-				}
+				schedule: wireSchedule
 			}
 		]);
 		expect(queue.pendingCount).toBe(0);
@@ -121,7 +124,7 @@ describe('ReviewSyncQueue', () => {
 	it('carries no schedule when the session supplies none', async () => {
 		await queue.addReview(404, 3, ANSWERED_AT);
 
-		expect(endpoint.calls[0][0].reviewSchedule).toBeNull();
+		expect(endpoint.calls[0][0].schedule).toBeNull();
 		expect(queue.pendingCount).toBe(0);
 	});
 
@@ -185,9 +188,10 @@ describe('ReviewSyncQueue', () => {
 		expect(queue.parkedItems[0].cardId).toBe(2);
 	});
 
-	it('offers a parked Grade again on a later push and removes it once accepted', async () => {
+	it('offers a parked Grade again carrying its Review schedule as schedule, and removes it once accepted', async () => {
+		const produced = schedule();
 		setOnline(false);
-		await queue.addReview(1, 1, ANSWERED_AT);
+		await queue.addReview(1, 1, ANSWERED_AT, produced);
 		await queue.addReview(2, 3, ANSWERED_AT);
 
 		setOnline(true);
@@ -198,7 +202,16 @@ describe('ReviewSyncQueue', () => {
 		endpoint.acceptAll();
 		await queue.pushGrades(endpoint);
 
-		expect(endpoint.calls[1].map((grade) => grade.cardId)).toEqual([1]);
+		// The Grade parked after a refusal leaves with the name the backend
+		// accepts, and the device drops it once accepted.
+		expect(endpoint.calls[1]).toEqual([
+			{
+				cardId: 1,
+				grade: 1,
+				answeredAt: ANSWERED_AT.toISOString(),
+				schedule: wireSchedule
+			}
+		]);
 		expect(queue.parkedCount).toBe(0);
 		const store = await queue.device();
 		expect(await store?.readQueuedGrades()).toEqual([]);

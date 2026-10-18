@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { syncApi } from './sync';
 import { deckApi } from './decks';
 import { clientCache } from './cache';
+import type { GradeBatchEntry } from '$lib/sync/contract';
 
 describe('syncApi', () => {
 	const mockFetch = vi.fn();
@@ -25,12 +26,12 @@ describe('syncApi', () => {
 				{ status: 200, headers: { 'Content-Type': 'application/json' } }
 			)
 		);
-		const grades = [
+		const grades: GradeBatchEntry[] = [
 			{
 				cardId: 1,
-				grade: 3 as const,
+				grade: 3,
 				answeredAt: '2026-10-17T09:00:00.000Z',
-				reviewSchedule: {
+				schedule: {
 					interval: 1,
 					efactor: 2.5,
 					repetitions: 1,
@@ -39,9 +40,9 @@ describe('syncApi', () => {
 			},
 			{
 				cardId: 2,
-				grade: 4 as const,
+				grade: 4,
 				answeredAt: '2026-10-17T09:05:00.000Z',
-				reviewSchedule: null
+				schedule: null
 			}
 		];
 
@@ -51,7 +52,17 @@ describe('syncApi', () => {
 		const [url, init] = mockFetch.mock.calls[0];
 		expect(url).toContain('/reviews/batch');
 		expect(init.method).toBe('POST');
-		expect(JSON.parse(init.body)).toEqual({ grades });
+		const body = JSON.parse(init.body);
+		expect(body).toEqual({ grades });
+		// The deployed backend reads the Review schedule as `schedule`; a Grade
+		// without one still carries the field, as null.
+		expect(body.grades[0].schedule).toEqual({
+			interval: 1,
+			efactor: 2.5,
+			repetitions: 1,
+			nextReviewAt: '2026-10-18T09:00:00.000Z'
+		});
+		expect(body.grades[1].schedule).toBeNull();
 		expect(results).toEqual([{ accepted: true }, { accepted: false, error: 'DeckShare revoked' }]);
 	});
 

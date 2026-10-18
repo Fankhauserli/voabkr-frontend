@@ -27,8 +27,11 @@ export interface GradeBatchEntry {
 	grade: SM2Rating;
 	/** The moment the Grade was answered, as an ISO 8601 string. */
 	answeredAt: string;
-	/** The Review schedule the Grade produced; null when none is available. */
-	reviewSchedule: ReviewSchedulePayload | null;
+	/**
+	 * The Review schedule the Grade produced; null when none is available. The
+	 * backend reads it under this name, `schedule`, not `reviewSchedule`.
+	 */
+	schedule: ReviewSchedulePayload | null;
 }
 
 /** A Review schedule as it crosses the wire: the shape Card responses already carry. */
