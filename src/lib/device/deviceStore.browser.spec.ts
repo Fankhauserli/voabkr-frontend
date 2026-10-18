@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { Card, Deck } from '$lib/types';
 import type { ReviewSchedule } from '$lib/scheduling/reviewSchedule';
-import { DeviceStore } from './deviceStore';
+import { DeviceStore, DeviceStoreBlockedError } from './deviceStore';
 
 /** A Card belonging to a Deck. */
 const card = (id: number, deckId: number): Card => ({
@@ -38,6 +38,36 @@ const deleteDatabase = (name: string): Promise<void> =>
 		request.onerror = () => reject(request.error);
 		request.onblocked = () => reject(new Error(`Deleting ${name} was blocked`));
 	});
+
+/**
+ * Opens a database at an explicit version and holds the connection until it is
+ * closed, as another tab with an older build would.
+ */
+const openAtVersion = (name: string, version: number): Promise<IDBDatabase> =>
+	new Promise((resolve, reject) => {
+		const request = indexedDB.open(name, version);
+		request.onsuccess = () => resolve(request.result);
+		request.onerror = () => reject(request.error);
+	});
+
+/**
+ * A tab running an older build holding the database open: the test's own store
+ * is closed and replaced by an empty version-1 connection.
+ */
+const holdOlderDatabase = async (store: DeviceStore, name: string): Promise<IDBDatabase> => {
+	store.close();
+	await deleteDatabase(name);
+	return openAtVersion(name, 1);
+};
+
+/** Opens the store while an older connection holds it, expecting the blocked failure. */
+const expectBlockedOpen = async (name: string): Promise<void> => {
+	const error: unknown = await DeviceStore.open(name, { blockedTimeoutMs: 100 }).catch(
+		(reason: unknown) => reason
+	);
+	expect(error).toBeInstanceOf(DeviceStoreBlockedError);
+	expect((error as Error).message).toContain('another voabkr tab or window');
+};
 
 describe('DeviceStore', () => {
 	let name: string;
@@ -321,6 +351,40 @@ describe('DeviceStore', () => {
 		store.close();
 		store = await DeviceStore.open(name);
 		expect(await store.readQueuedGrades()).toHaveLength(2);
+	});
+
+	it('fails a blocked open with a cause that names the other tab, instead of waiting forever', async () => {
+		const blocker = await holdOlderDatabase(store, name);
+		try {
+			await expectBlockedOpen(name);
+		} finally {
+			blocker.close();
+		}
+
+		// Let the abandoned open finish before the database is deleted.
+		(await DeviceStore.open(name)).close();
+	});
+
+	it('closes its connection when another tab asks for a version upgrade', async () => {
+		// One above the store's schema version: an upgrade, not a same-version open.
+		const upgraded = await openAtVersion(name, 4);
+
+		expect(upgraded.version).toBe(4);
+		upgraded.close();
+		// The version-change request closed this store's own connection.
+		await expect(store.readLibrary()).rejects.toThrow();
+	});
+
+	it('opens an empty store once the blocking connection is released', async () => {
+		const blocker = await holdOlderDatabase(store, name);
+
+		await expectBlockedOpen(name);
+
+		blocker.close();
+		store = await DeviceStore.open(name);
+
+		// An empty store is not a failure: it opens and reads as holding nothing.
+		expect(await store.listHeldDecks()).toEqual([]);
 	});
 
 	it('leaves a malformed legacy queue in place while migrating its valid Grades', async () => {
