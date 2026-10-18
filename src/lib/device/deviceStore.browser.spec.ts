@@ -14,7 +14,13 @@ const card = (id: number, deckId: number): Card => ({
 });
 
 /** A Deck as the Library pull returns it. */
-const deck = (id: number): Deck => ({ id, name: `Deck ${id}`, type: 'vocabulary' });
+const deck = (id: number): Deck => ({
+	id,
+	name: `Deck ${id}`,
+	type: 'vocabulary',
+	cardCount: 0,
+	dueCount: 0
+});
 
 /** A Review schedule whose next Due moment is the given October day. */
 const schedule = (day: number): ReviewSchedule => ({

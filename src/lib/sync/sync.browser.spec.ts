@@ -33,7 +33,13 @@ const schedule = (day: number): ReviewSchedule => ({
 });
 
 /** A Deck as the Library pull returns it. */
-const deck = (id: number): Deck => ({ id, name: `Deck ${id}`, type: 'vocabulary' });
+const deck = (id: number): Deck => ({
+	id,
+	name: `Deck ${id}`,
+	type: 'vocabulary',
+	cardCount: 0,
+	dueCount: 0
+});
 
 const ANSWERED_AT = new Date(2026, 9, 17, 9, 0);
 

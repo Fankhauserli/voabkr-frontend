@@ -16,9 +16,9 @@ export interface Deck {
 	name: string;
 	type: DeckType;
 	/** How many Cards the Deck holds; deleted Cards are excluded. */
-	cardCount?: number;
+	cardCount: number;
 	/** How many of the caller's Reviews of those Cards are Due now. */
-	dueCount?: number;
+	dueCount: number;
 	ownerId?: number;
 	isPublic?: boolean;
 	shareToken?: string;
@@ -48,7 +48,7 @@ export interface SharedDeckPreview {
 	id: number;
 	name: string;
 	type: DeckType;
-	cardCount?: number;
+	cardCount: number;
 	ownerName?: string;
 	isPublic?: boolean;
 	shareToken?: string;
