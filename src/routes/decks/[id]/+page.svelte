@@ -299,7 +299,7 @@
 				</p>
 			</div>
 		{:else}
-			<div class="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+			<div role="list" class="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
 				{#each visibleCards as card (card.id)}
 					<CardListItem {card} />
 				{/each}
