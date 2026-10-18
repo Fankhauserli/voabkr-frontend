@@ -9,6 +9,7 @@ import { render } from 'vitest-browser-svelte';
 import '../../../routes/layout.css';
 import StudyStage from './StudyStage.svelte';
 import ExitStudyModal from './ExitStudyModal.svelte';
+import { longGrammarCard } from './flashcardFixtures';
 import { StudySessionStore } from '$lib/stores/study.svelte';
 import { modal } from '$lib/stores/modal.svelte';
 import type { StudyDeviceSource } from '$lib/study/deviceSource';
@@ -29,19 +30,6 @@ const card = (id: number): Card => ({
 	context: 'noun',
 	example: `예문 ${id}`
 });
-
-/** A grammar Card's context is the whole rule note, not a short category. */
-const LONG_CONTEXT =
-	'Chapter 01. Expressing Conjecture and Supposition · Rule: An adjective stem ends in a consonant, so the ending -나 보다 attaches to the stem after the past tense marker.';
-
-/** A multi-paragraph example ends with a note the learner must still reach. */
-const LONG_EXAMPLE = [
-	'날씨가 추운 걸 보니까 눈이 온 것 같아요. 어제는 하늘이 맑았는데 오늘 아침에는 길이 미끄러웠어요.',
-	'',
-	'친구가 밖을 보더니 코트를 꺼내 입었어요. 바람도 세게 불고 있었거든요.',
-	'',
-	'[Note] -나 보다 attaches to the stem and expresses an inference from what the speaker sees or hears.'
-].join('\n');
 
 /** The device's copy of a Deck. */
 const heldDeck = (deckId: number, cards: readonly Card[]): DeckContents => ({
@@ -176,57 +164,56 @@ test('confirms before leaving the due queue and returns Home', async () => {
 	expect(session.isActive).toBe(false);
 });
 
-test('keeps a long grammar Card clear of the Grade buttons, collapsed and expanded', async () => {
-	await page.viewport(390, 844);
-	const grammarCard: Card = {
-		...card(1),
-		koreanWord: '눈이 온 것 같아요',
-		englishWord: 'It seems to have snowed',
-		context: LONG_CONTEXT,
-		example: LONG_EXAMPLE
-	};
-	const session = createSession([heldDeck(10, [grammarCard])]);
-	await session.start({ deckId: 10 });
+for (const expanded of [false, true]) {
+	test(`keeps a long grammar Card clear of the Grade buttons and operable when ${expanded ? 'expanded' : 'collapsed'}`, async () => {
+		await page.viewport(390, 844);
+		const session = createSession([heldDeck(10, [longGrammarCard()])]);
+		await session.start({ deckId: 10 });
 
-	const screen = render(StudyStage, { props: { session, deckId: 10 } });
+		const screen = render(StudyStage, { props: { session, deckId: 10 } });
 
-	await screen.getByRole('button', { name: /Reveal Meaning/ }).click();
+		await screen.getByRole('button', { name: /Reveal Meaning/ }).click();
 
-	const cardElement = screen.getByRole('button', { name: /Chapter 01/ }).element() as HTMLElement;
-	const revealedExample = screen
-		.getByText(/attaches to the stem and expresses an inference/)
-		.elements()
-		.at(-1) as HTMLElement;
-	const gradeBar = screen
-		.getByRole('group', { name: /Rate your recall/i })
-		.element() as HTMLElement;
-	// Card content — not merely the Card's box — stays inside the Card, and the
-	// Card ends above the Grade buttons.
-	const clearOfGrades = () => {
-		const cardRect = cardElement.getBoundingClientRect();
-		const gradeTop = gradeBar.getBoundingClientRect().top;
-		return (
-			revealedExample.getBoundingClientRect().bottom <= cardRect.bottom + 0.5 &&
-			cardRect.bottom <= gradeTop + 0.5
-		);
-	};
+		if (expanded) {
+			// Expanding the excerpts may scroll the page, but they still cannot cover the Grades.
+			await screen.getByRole('button', { name: 'Show more', exact: true }).click();
+		}
 
-	await expect.poll(clearOfGrades).toBe(true);
-	// Collapsed, the Card and the Grade buttons fit the screen, so they stay in the thumb zone.
-	expect(document.documentElement.scrollHeight).toBeLessThanOrEqual(window.innerHeight + 1);
-	expect(gradeBar.getBoundingClientRect().bottom).toBeLessThanOrEqual(window.innerHeight + 1);
+		const cardElement = screen.getByRole('region', { name: /Flashcard/ }).element() as HTMLElement;
+		const revealedExample = screen
+			.getByText(/attaches to the stem and expresses an inference/)
+			.elements()
+			.at(-1) as HTMLElement;
+		const gradeBar = screen
+			.getByRole('group', { name: /Rate your recall/i })
+			.element() as HTMLElement;
+		// Card content — not merely the Card's box — stays inside the Card, and the
+		// Card ends above the Grade buttons.
+		const clearOfGrades = () => {
+			const cardRect = cardElement.getBoundingClientRect();
+			const gradeTop = gradeBar.getBoundingClientRect().top;
+			return (
+				revealedExample.getBoundingClientRect().bottom <= cardRect.bottom + 0.5 &&
+				cardRect.bottom <= gradeTop + 0.5
+			);
+		};
 
-	for (const grade of ['Again', 'Hard', 'Good', 'Easy']) {
-		await expect
-			.element(screen.getByRole('button', { name: new RegExp(`^${grade}`) }))
-			.toBeVisible();
-	}
+		await expect.poll(clearOfGrades).toBe(true);
 
-	// Expanding the example may scroll the page, but it still cannot cover the Grades.
-	await screen.getByRole('button', { name: 'Show more', exact: true }).click();
-	await expect.poll(clearOfGrades).toBe(true);
+		if (!expanded) {
+			// Collapsed, the Card and the Grade buttons fit the screen, so they stay in the thumb zone.
+			expect(document.documentElement.scrollHeight).toBeLessThanOrEqual(window.innerHeight + 1);
+			expect(gradeBar.getBoundingClientRect().bottom).toBeLessThanOrEqual(window.innerHeight + 1);
+		}
 
-	// Operable while expanded: the click reaches the Grade button, not the Card.
-	await screen.getByRole('button', { name: /^Good/ }).click();
-	await vi.waitFor(() => expect(vi.mocked(goto)).toHaveBeenCalledWith('/study/summary'));
-});
+		for (const grade of ['Again', 'Hard', 'Good', 'Easy']) {
+			await expect
+				.element(screen.getByRole('button', { name: new RegExp(`^${grade}`) }))
+				.toBeVisible();
+		}
+
+		// Operable in this state: the click reaches the Grade button, not the Card.
+		await screen.getByRole('button', { name: /^Good/ }).click();
+		await vi.waitFor(() => expect(vi.mocked(goto)).toHaveBeenCalledWith('/study/summary'));
+	});
+}
