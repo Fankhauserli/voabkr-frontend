@@ -12,9 +12,11 @@ import type { DownloadedDeck } from '$lib/device/deviceStore';
  * `POST /reviews/batch`
  *   request:  { grades: GradeBatchEntry[] }
  *   response: { results: GradeBatchResult[] } in the same order as the request.
- * A Grade that the backend refuses comes back with `accepted: false`; every
- * other Grade in the batch still applies. Replaying a Grade is safe because it
- * carries the moment it was answered, and the backend keeps the later answer.
+ * A Grade that the backend refuses comes back with `accepted: false` and a
+ * `reason` naming the cause; an accepted Grade may carry one too when it was a
+ * replay. Every other Grade in the batch still applies. Replaying a Grade is
+ * safe because it carries the moment it was answered, and the backend keeps
+ * the later answer.
  *
  * `GET /decks/` returns the Library.
  * `GET /cards/?deck_id=<id>&deckId=<id>` returns the Deck's Cards, each with an
@@ -39,8 +41,15 @@ export type ReviewSchedulePayload = CardReviewSchedule;
 
 /** What the backend decided about one Grade, in request order. */
 export interface GradeBatchResult {
+	/** The Card the Grade was for, echoing the request entry. */
+	cardId: number;
 	accepted: boolean;
-	error?: string;
+	/**
+	 * The backend's word for the outcome: a refusal's cause, or that the Grade
+	 * was already recorded. Empty when the Grade was just recorded; optional so
+	 * a response without it still parses.
+	 */
+	reason?: string;
 }
 
 /** The one route that carries Grades: a batch, online with a batch of one. */

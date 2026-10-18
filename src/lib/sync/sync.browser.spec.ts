@@ -61,7 +61,7 @@ class FakeSyncEndpoint implements SyncEndpoint {
 		this.pushes.push(grades.map((grade) => ({ ...grade })));
 		if (this.pushError) throw this.pushError;
 		if (this.pushResults.length === grades.length) return this.pushResults;
-		return grades.map(() => ({ accepted: true }));
+		return grades.map((grade) => ({ cardId: grade.cardId, accepted: true }));
 	}
 
 	async pullLibrary(): Promise<Deck[]> {
@@ -142,9 +142,9 @@ describe('Sync', () => {
 		await queue.addReview(3, 4, ANSWERED_AT);
 		setOnline(true);
 		endpoint.pushResults = [
-			{ accepted: true },
-			{ accepted: false, error: 'DeckShare revoked' },
-			{ accepted: true }
+			{ cardId: 1, accepted: true },
+			{ cardId: 2, accepted: false, reason: 'DeckShare revoked' },
+			{ cardId: 3, accepted: true }
 		];
 
 		await sync.sync();

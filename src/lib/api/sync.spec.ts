@@ -21,7 +21,10 @@ describe('syncApi', () => {
 		mockFetch.mockResolvedValueOnce(
 			new Response(
 				JSON.stringify({
-					results: [{ accepted: true }, { accepted: false, error: 'DeckShare revoked' }]
+					results: [
+						{ cardId: 1, accepted: true },
+						{ cardId: 2, accepted: false, reason: 'no access to this Deck' }
+					]
 				}),
 				{ status: 200, headers: { 'Content-Type': 'application/json' } }
 			)
@@ -63,7 +66,14 @@ describe('syncApi', () => {
 			nextReviewAt: '2026-10-18T09:00:00.000Z'
 		});
 		expect(body.grades[1].schedule).toBeNull();
-		expect(results).toEqual([{ accepted: true }, { accepted: false, error: 'DeckShare revoked' }]);
+		expect(results).toEqual([
+			{ cardId: 1, accepted: true },
+			{ cardId: 2, accepted: false, reason: 'no access to this Deck' }
+		]);
+		// A refusal's cause is carried. An accepted Grade may carry a reason too
+		// (a replay note), so the field is optional and may be absent.
+		expect(results[1].reason).toBe('no access to this Deck');
+		expect(results[0].reason).toBeUndefined();
 	});
 
 	it('fetches the Library fresh from /decks/', async () => {
