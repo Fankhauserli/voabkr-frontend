@@ -21,7 +21,7 @@ test('shows the Card total and the Due count the API serves', async () => {
 test('shows no Due badge when the caller has nothing due', async () => {
 	const screen = render(DeckCard, { deck: { ...deck, dueCount: 0 } });
 
-	expect(screen.getByText('0 due').elements()).toHaveLength(0);
+	expect(screen.getByText(/due/i).elements()).toHaveLength(0);
 });
 
 test('marks a Deck held on the device and offers to remove it', async () => {

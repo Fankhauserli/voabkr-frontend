@@ -15,9 +15,9 @@ export interface Deck {
 	id: number;
 	name: string;
 	type: DeckType;
-	/** How many live Cards the Deck holds. */
+	/** How many Cards the Deck holds; deleted Cards are excluded. */
 	cardCount?: number;
-	/** How many of the caller's Reviews of the Deck's live Cards are Due now. */
+	/** How many of the caller's Reviews of those Cards are Due now. */
 	dueCount?: number;
 	ownerId?: number;
 	isPublic?: boolean;
