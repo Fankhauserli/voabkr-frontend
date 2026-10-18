@@ -21,9 +21,11 @@
 		session: StudySessionStore;
 		/** The Deck the sitting studies, or null for the due queue. */
 		deckId: number | null;
+		/** Re-attempts the device-store open and the sitting; the route owns both. */
+		onRetry?: () => void | Promise<void>;
 	}
 
-	let { session, deckId }: Props = $props();
+	let { session, deckId, onRetry }: Props = $props();
 
 	/** Where leaving the sitting goes: back to its Deck, or Home for the due queue. */
 	let exitDestination = $derived(deckId === null ? '/' : `/decks/${deckId}`);
@@ -167,6 +169,44 @@
 				<p class="mt-4 text-xs font-semibold text-ink-secondary">
 					{deckId === null ? 'Loading study cards...' : 'Loading deck cards...'}
 				</p>
+			</div>
+		{:else if session.storeBlocked}
+			<!-- Another tab or window holds an older store; closing it and Retrying is the way back. -->
+			<div
+				class="w-full max-w-sm rounded-2xl border border-amber/40 bg-surface p-6 text-center shadow-xs"
+			>
+				<div
+					class="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-amber/10 text-amber"
+				>
+					<svg
+						class="h-7 w-7"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						aria-hidden="true"
+					>
+						<path
+							d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
+						/>
+						<line x1="12" y1="9" x2="12" y2="13" />
+						<line x1="12" y1="17" x2="12.01" y2="17" />
+					</svg>
+				</div>
+				<h2 class="text-lg font-bold text-ink-primary">
+					Another voabkr tab or window is in the way
+				</h2>
+				<p class="mt-1 text-xs leading-relaxed text-ink-secondary">
+					voabkr could not open your saved study data because another voabkr tab or window is still
+					using an older version. Close the other tab or window, then try again.
+				</p>
+				<div class="mt-6 flex flex-col gap-2">
+					<TactileButton variant="primary" fullWidth onclick={() => void onRetry?.()}>
+						Try again
+					</TactileButton>
+				</div>
 			</div>
 		{:else if session.error && deckId !== null}
 			<!-- The Deck route's ensure step could not load the Deck; the due queue keeps its empty state. -->

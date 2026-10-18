@@ -1,4 +1,5 @@
 import type { Card, SM2Rating, StudySessionSummary } from '$lib/types';
+import { DeviceStoreBlockedError } from '$lib/device/deviceStore';
 import {
 	newCardSchedule,
 	nextReviewSchedule,
@@ -100,6 +101,13 @@ class StudySessionStore {
 
 	/** Error message if loading failed */
 	error = $state<string | null>(null);
+
+	/**
+	 * Whether the sitting could not start because another voabkr tab or window
+	 * holds an older device store. The stage offers a Retry instead of an error
+	 * message the learner cannot act on.
+	 */
+	storeBlocked = $state<boolean>(false);
 
 	/** Revision counter to clear scratch pad canvas */
 	scratchPadRevision = $state<number>(0);
@@ -244,7 +252,11 @@ class StudySessionStore {
 
 			return plan.cards.length > 0;
 		} catch (err: unknown) {
-			this.error = err instanceof Error ? err.message : 'Failed to load the Cards on this device';
+			if (err instanceof DeviceStoreBlockedError) {
+				this.storeBlocked = true;
+			} else {
+				this.error = err instanceof Error ? err.message : 'Failed to load the Cards on this device';
+			}
 			return false;
 		} finally {
 			this.isLoading = false;
@@ -356,6 +368,7 @@ class StudySessionStore {
 		this.isFlipped = false;
 		this.isLoading = false;
 		this.error = null;
+		this.storeBlocked = false;
 		this.remainingDeckCards = [];
 		this.batchNumber = 1;
 		this.sessionDeckId = null;

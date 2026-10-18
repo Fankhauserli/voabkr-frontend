@@ -1,12 +1,11 @@
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import type { Card } from '$lib/types';
-import { DeviceStore, type DownloadedDeck } from './deviceStore';
+import type { DeviceStore, DownloadedDeck } from './deviceStore';
+import { DeviceStoreConnection, type DeviceStoreConnectionOptions } from './deviceStoreConnection';
 import { reviewScheduleOf } from './cardReviewSchedule';
 
 /** Where the held Decks are stored. Overridable so a test can use a database of its own. */
-export interface DownloadedDecksOptions {
-	databaseName?: string;
-}
+export type DownloadedDecksOptions = DeviceStoreConnectionOptions;
 
 /**
  * The Decks held on the device, as the Library and a Study session see them.
@@ -17,25 +16,29 @@ export interface DownloadedDecksOptions {
  * one step, so the Library tells the truth without waiting for a reload.
  */
 export class DownloadedDecks {
-	readonly #store: Promise<DeviceStore | null>;
-	readonly #ready: Promise<void>;
+	readonly #connection: DeviceStoreConnection | null;
+	#ready: Promise<void>;
 	readonly #held = $state(new SvelteSet<number>());
 
 	constructor(options: DownloadedDecksOptions = {}) {
 		if (typeof window === 'undefined' || typeof indexedDB === 'undefined') {
-			this.#store = Promise.resolve(null);
+			this.#connection = null;
 			this.#ready = Promise.resolve();
 			return;
 		}
 
-		this.#store = DeviceStore.open(options.databaseName).catch((error) => {
-			console.error('[DownloadedDecks] Failed to open the device store:', error);
-			return null;
-		});
+		this.#connection = new DeviceStoreConnection(options);
 		this.#ready = this.#hydrate();
+		// A route may not wait on `ready` before the store is read, and a blocked
+		// open must not surface as an unhandled rejection.
+		this.#ready.catch(() => {});
 	}
 
-	/** Resolves once the held Decks have been read from the device store. */
+	/**
+	 * Resolves once the held Decks have been read from the device store. It
+	 * rejects with DeviceStoreBlockedError while another tab or window holds an
+	 * older version, so a caller can offer a Retry rather than an empty view.
+	 */
 	public get ready(): Promise<void> {
 		return this.#ready;
 	}
@@ -64,8 +67,7 @@ export class DownloadedDecks {
 	 * marks the Deck held. It is called when the Deck is first studied.
 	 */
 	async download(deckId: number, cards: readonly Card[]): Promise<void> {
-		await this.#ready;
-		const store = await this.#store;
+		const store = await this.#store();
 		if (!store) return;
 
 		await store.saveCards(cards);
@@ -81,8 +83,7 @@ export class DownloadedDecks {
 
 	/** Reads a Deck held on the device, without a network. */
 	async readDeck(deckId: number): Promise<DownloadedDeck> {
-		await this.#ready;
-		const store = await this.#store;
+		const store = await this.#store();
 		if (!store) return { cards: [], schedules: new SvelteMap() };
 		return store.readDeck(deckId);
 	}
@@ -93,9 +94,9 @@ export class DownloadedDecks {
 	 * refuses, it is put back rather than claiming something untrue.
 	 */
 	async remove(deckId: number): Promise<void> {
-		await this.#ready;
+		// Read the store first: a blocked store must not change what the view claims.
+		const store = await this.#store();
 		this.#held.delete(deckId);
-		const store = await this.#store;
 		if (!store) return;
 
 		try {
@@ -106,14 +107,28 @@ export class DownloadedDecks {
 		}
 	}
 
-	/** Closes the device store, ending this view's use of it. */
-	async close(): Promise<void> {
+	/**
+	 * Re-attempts the store open and re-reads the held Decks, as the Study
+	 * stage's Retry does once the other tab or window is closed. Throws
+	 * DeviceStoreBlockedError when the store is still in the way.
+	 */
+	async reopen(): Promise<void> {
+		if (!this.#connection) return;
+		this.#ready = this.#connection.reopen().then((store) => this.#readHeldDecks(store));
+		this.#ready.catch(() => {});
 		await this.#ready;
-		(await this.#store)?.close();
 	}
 
-	async #hydrate(): Promise<void> {
-		const store = await this.#store;
+	/** Closes the device store, ending this view's use of it. */
+	async close(): Promise<void> {
+		if (!this.#connection) return;
+		await this.#ready.catch(() => {});
+		(await this.#connection.current())?.close();
+	}
+
+	/** Reads the store's held Decks into the view, replacing what it showed. */
+	async #readHeldDecks(store: DeviceStore | null): Promise<void> {
+		this.#held.clear();
 		if (!store) return;
 		try {
 			const heldDeckIds = await store.listHeldDecks();
@@ -123,6 +138,17 @@ export class DownloadedDecks {
 		} catch (error) {
 			console.error('[DownloadedDecks] Failed to read the held Decks:', error);
 		}
+	}
+
+	async #hydrate(): Promise<void> {
+		if (!this.#connection) return;
+		await this.#readHeldDecks(await this.#connection.current());
+	}
+
+	/** The open store, once hydration has read it; null when it is unavailable. */
+	async #store(): Promise<DeviceStore | null> {
+		await this.#ready;
+		return this.#connection ? this.#connection.current() : null;
 	}
 }
 

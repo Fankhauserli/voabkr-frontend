@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
+	import { reopenDeviceStores } from '$lib/study/reopenDeviceStores';
 	import { studySession } from '$lib/stores/study.svelte';
 	import StudyStage from '$lib/components/study/StudyStage.svelte';
 
@@ -21,13 +22,24 @@
 
 	const scopeDeckId = readScope();
 
+	function startSitting() {
+		return studySession.start({ deckId: scopeDeckId ?? undefined });
+	}
+
 	onMount(() => {
-		void studySession.start({ deckId: scopeDeckId ?? undefined });
+		void startSitting();
 	});
+
+	/** Re-attempts the store open, then the sitting, without a page reload. */
+	async function retry() {
+		// A store that is still blocked reports itself again when the sitting reads it.
+		await reopenDeviceStores().catch(() => {});
+		await startSitting();
+	}
 </script>
 
 <svelte:head>
 	<title>voabkr — Study Session</title>
 </svelte:head>
 
-<StudyStage session={studySession} deckId={scopeDeckId} />
+<StudyStage session={studySession} deckId={scopeDeckId} onRetry={retry} />

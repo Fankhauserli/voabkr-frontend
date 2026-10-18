@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { DeviceStoreBlockedError } from '$lib/device/deviceStore';
 import { StudySessionStore, BATCH_SIZE } from './study.svelte';
 import { startOfDay, type DeckContents } from '$lib/study/queueAssembly';
 import type { StudyDeviceSource } from '$lib/study/deviceSource';
@@ -566,5 +567,37 @@ describe('StudySessionStore — Grades and the Session summary', () => {
 		expect(store.startNextBatch()).toBe(true);
 		await answerGoodUntilFinished(store);
 		await vi.waitFor(() => expect(sync.sync).toHaveBeenCalledTimes(1));
+	});
+});
+
+describe('StudySessionStore — a blocked device store', () => {
+	it('reports the block to the stage and starts once the store can open', async () => {
+		const device = createDevice([deck(10, cards(2))]);
+		device.readDecks.mockRejectedValueOnce(new DeviceStoreBlockedError());
+		const store = createStore(device.source);
+
+		await store.start({ deckId: 10 });
+
+		expect(store.storeBlocked).toBe(true);
+		expect(store.error).toBeNull();
+		expect(store.isLoading).toBe(false);
+		expect(store.totalCards).toBe(0);
+
+		// The learner closes the other tab; Retry starts the same sitting.
+		await store.start({ deckId: 10 });
+
+		expect(store.storeBlocked).toBe(false);
+		expect(store.totalCards).toBe(2);
+	});
+
+	it('keeps an ordinary device failure distinct from a block', async () => {
+		const device = createDevice([]);
+		device.readDecks.mockRejectedValueOnce(new Error('IndexedDB is not available on this device'));
+		const store = createStore(device.source);
+
+		await store.start();
+
+		expect(store.storeBlocked).toBe(false);
+		expect(store.error).toBe('IndexedDB is not available on this device');
 	});
 });

@@ -3,8 +3,10 @@
 	import { page } from '$app/state';
 	import { deckApi } from '$lib/api/decks';
 	import { cardApi } from '$lib/api/cards';
+	import { DeviceStoreBlockedError } from '$lib/device/deviceStore';
 	import { downloadedDecks } from '$lib/device/downloadedDecks.svelte';
 	import { loadStudyDeck } from '$lib/device/loadStudyDeck';
+	import { reopenDeviceStores } from '$lib/study/reopenDeviceStores';
 	import { studySession } from '$lib/stores/study.svelte';
 	import type { Deck } from '$lib/types';
 	import StudyStage from '$lib/components/study/StudyStage.svelte';
@@ -52,10 +54,21 @@
 			await studySession.start({ deckId });
 		} catch (err: unknown) {
 			studySession.reset();
-			studySession.error = err instanceof Error ? err.message : 'Failed to load deck cards';
+			if (err instanceof DeviceStoreBlockedError) {
+				studySession.storeBlocked = true;
+			} else {
+				studySession.error = err instanceof Error ? err.message : 'Failed to load deck cards';
+			}
 		} finally {
 			studySession.isLoading = false;
 		}
+	}
+
+	/** Re-attempts the store open, then the Deck's load, without a page reload. */
+	async function retry() {
+		// A store that is still blocked reports itself again when the load reads it.
+		await reopenDeviceStores().catch(() => {});
+		await loadDeck();
 	}
 </script>
 
@@ -105,5 +118,5 @@
 		</main>
 	</div>
 {:else}
-	<StudyStage session={studySession} {deckId} />
+	<StudyStage session={studySession} {deckId} onRetry={retry} />
 {/if}
