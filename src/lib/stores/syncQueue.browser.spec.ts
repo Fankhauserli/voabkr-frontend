@@ -1,8 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ReviewSyncQueue } from './syncQueue.svelte';
+import type { Card } from '$lib/types';
 import { DeviceStore, DeviceStoreBlockedError } from '$lib/device/deviceStore';
-import type { ReviewSchedule } from '$lib/scheduling/reviewSchedule';
-import type { GradeBatchEntry, GradeBatchResult, GradePushEndpoint } from '$lib/sync/contract';
+import {
+	newCardSchedule,
+	nextReviewSchedule,
+	type ReviewSchedule
+} from '$lib/scheduling/reviewSchedule';
+import {
+	toSchedulePayload,
+	type GradeBatchEntry,
+	type GradeBatchResult,
+	type GradePushEndpoint
+} from '$lib/sync/contract';
 
 /** Deletes a test database once the queue has closed it. */
 const deleteDatabase = (name: string): Promise<void> =>
@@ -28,6 +38,16 @@ const wireSchedule = {
 	repetitions: 1,
 	nextReviewAt: new Date(2026, 9, 18, 9, 0).toISOString()
 };
+
+/** A Card held on the device, as the queue finds it when a Grade supplies no schedule. */
+const card = (id: number): Card => ({
+	id,
+	deckId: 10,
+	koreanWord: `단어 ${id}`,
+	englishWord: `Word ${id}`,
+	context: '',
+	example: ''
+});
 
 /** A push endpoint a test drives: it records every batch and answers as told. */
 class FakePushEndpoint implements GradePushEndpoint {
@@ -124,11 +144,53 @@ describe('ReviewSyncQueue', () => {
 		expect(queue.items[0].schedule).toEqual(produced);
 	});
 
-	it('carries no schedule when the session supplies none', async () => {
+	it('sends a null schedule for a Card the device does not hold, rather than inventing one', async () => {
 		await queue.addReview(404, 3, ANSWERED_AT);
 
 		expect(endpoint.calls[0][0].schedule).toBeNull();
 		expect(queue.pendingCount).toBe(0);
+	});
+
+	it('computes a missing schedule from the Review a held Card carries', async () => {
+		const store = await queue.device();
+		const current = schedule();
+		await store?.saveCards([card(101)]);
+		await store?.writeSchedule(101, current);
+
+		await queue.addReview(101, 3, ANSWERED_AT);
+
+		const produced = nextReviewSchedule(current, 3, ANSWERED_AT);
+		expect(endpoint.calls[0]).toEqual([
+			{
+				cardId: 101,
+				grade: 3,
+				answeredAt: ANSWERED_AT.toISOString(),
+				schedule: toSchedulePayload(produced)
+			}
+		]);
+		// The device is written too, so the next sitting reads the new Due moment.
+		expect(await store?.readSchedule(101)).toEqual(produced);
+	});
+
+	it('starts a held New Card from the beginning of its Review schedule when none is supplied', async () => {
+		const store = await queue.device();
+		await store?.saveCards([card(102)]);
+
+		await queue.addReview(102, 3, ANSWERED_AT);
+
+		const produced = nextReviewSchedule(newCardSchedule(ANSWERED_AT), 3, ANSWERED_AT);
+		expect(endpoint.calls[0][0].schedule).toEqual(toSchedulePayload(produced));
+		expect(await store?.readSchedule(102)).toEqual(produced);
+	});
+
+	it('sends legacy Grades without a schedule, because the Review rules define none', async () => {
+		const store = await queue.device();
+		await store?.saveCards([card(103), card(104)]);
+
+		await queue.addReview(103, 0, ANSWERED_AT);
+		await queue.addReview(104, 5, ANSWERED_AT);
+
+		expect(endpoint.calls.map((batch) => batch[0].schedule)).toEqual([null, null]);
 	});
 
 	it('keeps a Grade in the device store when offline, and hydrates it after a reload', async () => {
@@ -189,6 +251,20 @@ describe('ReviewSyncQueue', () => {
 		expect(queue.pendingCount).toBe(0);
 		expect(queue.parkedCount).toBe(1);
 		expect(queue.parkedItems[0].cardId).toBe(2);
+	});
+
+	it('leaves a Grade active when the batch answer has no result for it', async () => {
+		setOnline(false);
+		await queue.addReview(1, 3, ANSWERED_AT);
+		await queue.addReview(2, 3, ANSWERED_AT);
+		setOnline(true);
+
+		// A short answer decides only the Grades it names; the rest stay for later.
+		vi.spyOn(endpoint, 'pushGrades').mockResolvedValueOnce([{ cardId: 1, accepted: true }]);
+		await queue.pushGrades(endpoint);
+
+		expect(queue.items.map((grade) => grade.cardId)).toEqual([2]);
+		expect(queue.parkedCount).toBe(0);
 	});
 
 	it('offers a parked Grade again carrying its Review schedule as schedule, and removes it once accepted', async () => {

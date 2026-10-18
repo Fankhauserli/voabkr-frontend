@@ -5,7 +5,11 @@ import {
 	DeviceStoreConnection,
 	type DeviceStoreConnectionOptions
 } from '$lib/device/deviceStoreConnection';
-import type { ReviewSchedule } from '$lib/scheduling/reviewSchedule';
+import {
+	isAnkiRating,
+	nextReviewScheduleFrom,
+	type ReviewSchedule
+} from '$lib/scheduling/reviewSchedule';
 import {
 	toSchedulePayload,
 	type GradeBatchEntry,
@@ -136,10 +140,12 @@ class ReviewSyncQueue {
 	/**
 	 * Records a Grade, with the Review schedule the device computed for it.
 	 *
-	 * The schedule is written to the device store whichever way the Grade
-	 * travels, so the next Study session sees the Card's new Due moment rather
-	 * than repeating the one just answered. A Grade the backend accepts is not
-	 * left queued; one that cannot be sent stays for a later Sync.
+	 * When no schedule is supplied, the queue computes one from the Card the
+	 * device holds; a Card it does not hold travels without one. The schedule
+	 * is written to the device store whichever way the Grade travels, so the
+	 * next Study session sees the Card's new Due moment rather than repeating
+	 * the one just answered. A Grade the backend accepts is not left queued;
+	 * one that cannot be sent stays for a later Sync.
 	 */
 	async addReview(
 		cardId: number,
@@ -150,6 +156,14 @@ class ReviewSyncQueue {
 		await this.#ready;
 		const learnerId = this.#learnerId;
 		const store = await this.#store();
+
+		// A caller need not compute the schedule itself: the device knows the
+		// Card's current Review. Only a Card the device does not hold leaves
+		// with no schedule rather than one invented from a New Card.
+		if (!schedule && store) {
+			schedule = await this.#scheduleFromDevice(store, cardId, grade, answeredAt);
+		}
+
 		let queued: QueuedGrade;
 		if (store) {
 			queued = await store.appendQueuedGrade({ learnerId, cardId, grade, answeredAt, schedule });
@@ -283,6 +297,30 @@ class ReviewSyncQueue {
 		} finally {
 			this.isSyncing = false;
 		}
+	}
+
+	/**
+	 * The Review schedule a Grade produced, when the caller supplied none: the
+	 * device's schedule for the Card, after this Grade. A held Card with no
+	 * schedule is a New Card and starts from the beginning; a Card the device
+	 * does not hold yields null, because its Review cannot be known here.
+	 *
+	 * The stored schedule must be the one this Grade started from. A caller
+	 * that has already written the produced schedule must pass it in rather
+	 * than omit it, so the Grade is not applied twice.
+	 */
+	async #scheduleFromDevice(
+		store: DeviceStore,
+		cardId: number,
+		grade: SM2Rating,
+		answeredAt: Date
+	): Promise<ReviewSchedule | null> {
+		// Again–Easy are the Grades the Review schedule rules define; the legacy
+		// 0 and 5 have none, so they travel honestly without a schedule.
+		if (!isAnkiRating(grade)) return null;
+		if (!(await store.holdsCard(cardId))) return null;
+		const current = await store.readSchedule(cardId);
+		return nextReviewScheduleFrom(current, grade, answeredAt);
 	}
 
 	/** The open store, or null where a store failure only means degraded storage. */

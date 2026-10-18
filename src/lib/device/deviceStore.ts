@@ -148,6 +148,15 @@ export class DeviceStore {
 		await done;
 	}
 
+	/** Whether the device holds the Card. */
+	async holdsCard(cardId: number): Promise<boolean> {
+		const tx = this.#db.transaction(CARDS, 'readonly');
+		const done = transactionComplete(tx);
+		const key = await requestResult<IDBValidKey | undefined>(tx.objectStore(CARDS).getKey(cardId));
+		await done;
+		return key !== undefined;
+	}
+
 	/** Reads the Review schedule a Card carries, or null for a New Card. */
 	async readSchedule(cardId: number): Promise<ReviewSchedule | null> {
 		const tx = this.#db.transaction(SCHEDULES, 'readonly');
