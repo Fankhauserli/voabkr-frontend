@@ -1,4 +1,4 @@
-import type { AnkiRating } from '$lib/types';
+import type { AnkiRating, SM2Rating } from '$lib/types';
 
 /**
  * The Review schedule rules, ported from the backend's `handlers/review.go` so
@@ -41,6 +41,23 @@ export function newCardSchedule(answeredAt: Date): ReviewSchedule {
 		repetitions: 0,
 		nextReviewAt: answeredAt
 	};
+}
+
+/** Whether a Grade is one of the four the Review schedule rules define. */
+export function isAnkiRating(grade: SM2Rating): grade is AnkiRating {
+	return grade === 1 || grade === 2 || grade === 3 || grade === 4;
+}
+
+/**
+ * The Review schedule after a Grade, starting a New Card from the beginning
+ * when the Card carries no Review yet.
+ */
+export function nextReviewScheduleFrom(
+	current: ReviewSchedule | null,
+	grade: Grade,
+	answeredAt: Date
+): ReviewSchedule {
+	return nextReviewSchedule(current ?? newCardSchedule(answeredAt), grade, answeredAt);
 }
 
 /** Turns a Review schedule into the one that follows a Grade. */

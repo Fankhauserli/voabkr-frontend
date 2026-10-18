@@ -1,8 +1,8 @@
 import type { Card, SM2Rating, StudySessionSummary } from '$lib/types';
 import { DeviceStoreBlockedError } from '$lib/device/deviceStore';
 import {
-	newCardSchedule,
-	nextReviewSchedule,
+	isAnkiRating,
+	nextReviewScheduleFrom,
 	type ReviewSchedule
 } from '$lib/scheduling/reviewSchedule';
 import { preferences } from './preferences.svelte';
@@ -298,7 +298,7 @@ class StudySessionStore {
 	async rateCurrentCard(grade: SM2Rating): Promise<void> {
 		// The Session queue offers Again–Easy (1–4); 0 and 5 exist only for
 		// backward compatibility and have no Review schedule rule.
-		if (grade !== 1 && grade !== 2 && grade !== 3 && grade !== 4) return;
+		if (!isAnkiRating(grade)) return;
 
 		const answeredAt = this.now();
 		const answered = this.queue.answer(grade, answeredAt);
@@ -306,8 +306,8 @@ class StudySessionStore {
 
 		this.haptics.sm2Rating(grade);
 
-		const schedule = nextReviewSchedule(
-			this.#schedules.get(answered.id) ?? newCardSchedule(answeredAt),
+		const schedule = nextReviewScheduleFrom(
+			this.#schedules.get(answered.id) ?? null,
 			grade,
 			answeredAt
 		);
