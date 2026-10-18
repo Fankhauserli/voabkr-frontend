@@ -19,7 +19,7 @@ Modern AI-generated UI designs often suffer from repetitive, soulless cliches: d
 2. **Hangul-First Typographic Hierarchy:**
    Korean characters (한글) require balanced stroke density, vertical optical alignment, and generous line-height to maintain legibility. Latin typography is paired cleanly (Pretendard / Noto Sans KR paired with Geist or Inter).
 3. **Ergonomic One-Handed Reach (Thumb Zone):**
-   Designed specifically for mobile devices. Primary actions (card flip, SM-2 difficulty ratings, deck creation triggers) live in the lower 40% of the screen. Navigation is anchored to a native-feel bottom bar.
+   Designed specifically for mobile devices. Primary actions (card flip, SM-2 Grades, deck creation triggers) live in the lower 40% of the screen. Navigation is anchored to a native-feel bottom bar.
 4. **Purposeful Contrast over Decorative Glows:**
    High-contrast, warm stone and sumi-ink tones with crisp 1px borders, subtle paper-grain elevation, and purposeful semantic accents.
 
@@ -27,27 +27,27 @@ Modern AI-generated UI designs often suffer from repetitive, soulless cliches: d
 
 ## 2. Color System & Design Tokens
 
-The palette references natural East Asian material culture: **Hanji (traditional paper)**, **Sumi ink**, **Celadon jade**, and **Earthen terracotta**.
+The palette references natural East Asian material culture: **Ink & Mulberry** (paper, indigo ink, and mulberry tones by day), **Sumi ink** at night, **Celadon jade**, and natural mineral accents.
 
 ### 2.1 Palette Tokens
 
-#### Light Theme (Warm Hanji Notebook)
+#### Light Theme (Ink & Mulberry)
 
-| Token                   | Hex       | Role & Usage                                             |
-| :---------------------- | :-------- | :------------------------------------------------------- |
-| `--bg-canvas`           | `#F8F6F0` | Main application background (soft unbleached paper tone) |
-| `--bg-surface`          | `#FFFFFF` | Cards, bottom sheets, navigation bars                    |
-| `--bg-surface-elevated` | `#F1EFEA` | Card backs, nested wells, disabled button states         |
-| `--border-subtle`       | `#E5E0D6` | Standard structural borders (1px solid)                  |
-| `--border-strong`       | `#C8C1B4` | Active inputs, card borders during study                 |
-| `--text-primary`        | `#1A1917` | High-contrast Sumi ink for Hangul titles & body          |
-| `--text-secondary`      | `#5C5850` | Grammar notes, contexts, timestamps                      |
-| `--text-muted`          | `#8C867A` | Placeholder text, inactive icons                         |
-| `--accent-terracotta`   | `#C85232` | Primary CTA, due card alerts, active streak              |
-| `--accent-celadon`      | `#2D6A5D` | Grammar deck badges, successful retention (SM-2 4–5)     |
-| `--accent-navy`         | `#1E3A5F` | Vocabulary deck badges, deep structural accents          |
-| `--accent-amber`        | `#C88325` | Warning, hesitation ratings (SM-2 2–3)                   |
-| `--accent-crimson`      | `#B83232` | Failed card rating (SM-2 0–1), destructive actions       |
+| Token                   | Hex       | Role & Usage                                         |
+| :---------------------- | :-------- | :--------------------------------------------------- |
+| `--bg-canvas`           | `#F7F5F0` | Main application background (paper tone)             |
+| `--bg-surface`          | `#FFFFFF` | Cards, bottom sheets, navigation bars                |
+| `--bg-surface-elevated` | `#EFECE4` | Card backs, nested wells, disabled button states     |
+| `--border-subtle`       | `#DFDACF` | Standard structural borders (1px solid)              |
+| `--border-strong`       | `#B8B0A1` | Active inputs, card borders during study             |
+| `--text-primary`        | `#1B1A18` | High-contrast ink for Hangul titles & body           |
+| `--text-secondary`      | `#514C45` | Grammar notes, contexts, timestamps                  |
+| `--text-muted`          | `#6E685E` | Placeholder text, inactive icons                     |
+| `--accent-primary`      | `#24486B` | Primary CTA, due card alerts, active streak (indigo) |
+| `--accent-celadon`      | `#2A6657` | Grammar deck badges, successful retention            |
+| `--accent-navy`         | `#1D3A5C` | Vocabulary deck badges, deep structural accents      |
+| `--accent-amber`        | `#8A641E` | Warning, hesitation Grades                           |
+| `--accent-crimson`      | `#A62D35` | Failed Grade, destructive actions                    |
 
 #### Dark Theme (Sumi Ink Night)
 
@@ -55,30 +55,28 @@ The palette references natural East Asian material culture: **Hanji (traditional
 | :---------------------- | :-------- | :------------------------------------------------- |
 | `--bg-canvas`           | `#121211` | Deep warm charcoal (not harsh OLED pitch black)    |
 | `--bg-surface`          | `#1B1A18` | Elevated card surfaces and bottom nav bar          |
-| `--bg-surface-elevated` | `#262522` | Card backs, interactive list items on hover/press  |
-| `--border-subtle`       | `#2D2B27` | Soft framing borders                               |
-| `--border-strong`       | `#45423C` | Focused inputs, card perimeters                    |
-| `--text-primary`        | `#EDE9E1` | High-contrast warm off-white for Hangul characters |
-| `--text-secondary`      | `#A6A094` | Context tags, english translations, metadata       |
-| `--text-muted`          | `#686359` | Disabled states, empty state captions              |
-| `--accent-terracotta`   | `#DE6A48` | Warm flame primary action                          |
-| `--accent-celadon`      | `#4E9B89` | Soft mint celadon for grammar and high recall      |
-| `--accent-navy`         | `#5384B8` | Soft slate blue for vocabulary decks               |
-| `--accent-amber`        | `#DF9D38` | Warm ochre for moderate ratings                    |
-| `--accent-crimson`      | `#E05252` | Soft crimson for resets & forgotten items          |
+| `--bg-surface-elevated` | `#252421` | Card backs, interactive list items on hover/press  |
+| `--border-subtle`       | `#2E2B26` | Soft framing borders                               |
+| `--border-strong`       | `#46423A` | Focused inputs, card perimeters                    |
+| `--text-primary`        | `#EEEAE2` | High-contrast warm off-white for Hangul characters |
+| `--text-secondary`      | `#A8A296` | Context tags, english translations, metadata       |
+| `--text-muted`          | `#6C675E` | Disabled states, empty state captions              |
+| `--accent-primary`      | `#6B95BD` | Refined indigo highlight, primary action           |
+| `--accent-celadon`      | `#4EA08E` | Soft mint celadon for grammar and high recall      |
+| `--accent-navy`         | `#5A8BBD` | Soft navy for vocabulary decks                     |
+| `--accent-amber`        | `#CF9F4D` | Warm ochre for moderate Grades                     |
+| `--accent-crimson`      | `#E05555` | Soft crimson for resets & forgotten items          |
 
-### 2.2 SuperMemo SM-2 Rating Scale Palette
+### 2.2 SuperMemo SM-2 Grade Button Palette
 
-Cards use a 6-tier rating system mapped to the backend `PUT /api/v1/reviews/:id` (`ease`: 0–5):
+Cards use the four Grades — Again, Hard, Good, and Easy — carried by the backend `PUT /api/v1/reviews/:id` (`ease`: 1–4). The stylesheet defines each button's fill and border for both Themes:
 
-| Ease  | Label      | Short Description               | Button Color (Light)         | Button Color (Dark)          |
-| :---: | :--------- | :------------------------------ | :--------------------------- | :--------------------------- |
-| **0** | Blackout   | Completely forgotten            | `#FDF2F2` / Border `#E88080` | `#331818` / Border `#8A2E2E` |
-| **1** | Wrong      | Incorrect, remembered on reveal | `#FDF5F2` / Border `#E8A280` | `#332018` / Border `#8A4A2E` |
-| **2** | Hard-Wrong | Incorrect, almost recalled      | `#FEF9EE` / Border `#E8CA80` | `#332B18` / Border `#8A722E` |
-| **3** | Hard       | Correct, severe difficulty      | `#FEFCF0` / Border `#D6D47A` | `#303318` / Border `#7D802B` |
-| **4** | Good       | Correct with brief hesitation   | `#F0F8F5` / Border `#80CCA8` | `#183328` / Border `#2E805A` |
-| **5** | Easy       | Perfect, immediate recall       | `#EBF5F3` / Border `#60B69F` | `#152B24` / Border `#266B59` |
+| Ease  | Grade     | Hint      | Fill (Light) | Border (Light) | Fill (Dark) | Border (Dark) |
+| :---: | :-------- | :-------- | :----------- | :------------- | :---------- | :------------ |
+| **1** | **Again** | `< 1 min` | `#FBEDEC`    | `#CB6A64`      | `#331818`   | `#8A2E2E`     |
+| **2** | **Hard**  | `< 6 min` | `#FAF2E2`    | `#AD8228`      | `#332B18`   | `#8A722E`     |
+| **3** | **Good**  | `10 min`  | `#EAF3EF`    | `#4F967B`      | `#183328`   | `#2E805A`     |
+| **4** | **Easy**  | `4 days`  | `#E4F1EC`    | `#438B74`      | `#152B24`   | `#266B59`     |
 
 ### 2.3 Typography Specs
 
@@ -107,7 +105,7 @@ Building with Capacitor for Android introduces platform constraints that the fro
   ```
 - **Status Bar Integration:** `@capacitor/status-bar` configured with:
   - `setStyle({ style: isDark ? Style.Dark : Style.Light })`
-  - `setBackgroundColor({ color: isDark ? '#121211' : '#F8F6F0' })`
+  - `setBackgroundColor({ color: isDark ? '#121211' : '#F7F5F0' })`
   - `setOverlaysWebView({ overlay: false })`
 
 ### 3.2 Redis Session & Cookie Management in Capacitor
@@ -137,17 +135,16 @@ Android users rely on the hardware back button or swipe-from-edge gestures.
 Use `@capacitor/haptics`:
 
 - Card flip: `Haptics.impact({ style: ImpactStyle.Light })`
-- Rating selection (0–5):
-  - 0–2 (Mistake): `Haptics.notification({ type: NotificationType.Warning })`
-  - 3–4 (Good): `Haptics.impact({ style: ImpactStyle.Medium })`
-  - 5 (Perfect): `Haptics.notification({ type: NotificationType.Success })`
+- Grade selection (1–4):
+  - 1–2 (Again, Hard): `Haptics.notification({ type: NotificationType.Warning })`
+  - 3–4 (Good, Easy): `Haptics.impact({ style: ImpactStyle.Medium })`
 
 ### 3.5 Offline-First Study Buffer
 
 Network interruptions shouldn't break a flashcard review in progress.
 
 - Pre-cache the current study batch (`GET /api/v1/reviews/`) in client IndexedDB.
-- When an SM-2 rating (`PUT /api/v1/reviews/:id`) is made while offline:
+- When an SM-2 Grade (`PUT /api/v1/reviews/:id`) is made while offline:
   - Buffer the mutation in IndexedDB queue.
   - Apply optimistic state locally.
   - Synchronize automatically when `window.navigator.onLine` fires.
@@ -198,7 +195,7 @@ flowchart TD
    - `Email` (type `email`, auto-capitalize `none`)
    - `Password` (type `password`, show/hide eye toggle)
 4. **Action Button:**
-   - Full-width terracotta primary button: `Start Learning` or `Log In`.
+   - Full-width indigo primary button: `Start Learning` or `Log In`.
 5. **Email Verification Notice (Conditional):**
    - If registered or unverified: Warm amber info-banner:
      > "We sent a 64-character verification link to your email. You can still study today, but please verify to keep your progress safe."
@@ -222,13 +219,13 @@ flowchart TD
    - Left: User greeting with avatar initial (`Jane` $\rightarrow$ `J` circle).
    - Right: Unverified email indicator (amber dot) + Daily streak pill (`🔥 7 Days`).
 2. **Daily Target Card (The Anchor):**
-   - Large tactile paper card with celadon/terracotta progress meter:
+   - Large tactile paper card with celadon/indigo progress meter:
      - Title: **Today's Goal**
      - Metric: `14 / 20 Cards Completed` (uses `cardsPerDay` from settings).
      - Circular or segmented bar showing remaining due cards.
 3. **Due Review Trigger Banner (Hero CTA):**
    - When cards are due (`reviews.length > 0`):
-     - Terracotta accent card with clean typography:
+     - Indigo accent card with clean typography:
        - Big counter: `23 Cards Due for Review`
        - Breakdown: `15 Vocabulary · 8 Grammar`
        - Primary Floating CTA button anchored at thumb height:  
@@ -251,7 +248,7 @@ flowchart TD
 **Backend Endpoints:**
 
 - `GET /api/v1/reviews/`
-- `PUT /api/v1/reviews/:id` (`{ ease: 0..5 }`)
+- `PUT /api/v1/reviews/:id` (`{ ease: 1..4 }`)
 
 This is the most critical screen in the application. It must be 100% distraction-free with zero visual noise.
 
@@ -278,8 +275,7 @@ This is the most critical screen in the application. It must be 100% distraction
 |  |  (I read books at the library.)    |  |
 |                                          |
 |------------------------------------------|
-|  [0] Blackout  | [1] Wrong  | [2] HardW  | (Ergonomic thumb rating grid)
-|  [3] Hard      | [4] Good   | [5] Perfect|
+| [Again] | [Hard] | [Good] | [Easy]       |
 +------------------------------------------+
 ```
 
@@ -302,9 +298,8 @@ This is the most critical screen in the application. It must be 100% distraction
      - Korean example sentence with English translation below it.
 3. **SM-2 Response Keypad (Bottom Thumb Bar):**
    - Visible immediately upon card flip.
-   - 2 rows of 3 large tactile buttons (min 48dp height each), colored according to the SM-2 scale tokens:
-     - Top row: `[ 0: Blackout ]`, `[ 1: Wrong ]`, `[ 2: Hard-Wrong ]`
-     - Bottom row: `[ 3: Hard ]`, `[ 4: Good ]`, `[ 5: Perfect ]`
+   - One row of four large tactile buttons (min 48dp height each), colored according to the Grade tokens:
+     - `[ 1: Again ]`, `[ 2: Hard ]`, `[ 3: Good ]`, `[ 4: Easy ]`
    - Pressing any button:
      - Triggers native haptic pulse.
      - Dispatches `PUT /api/v1/reviews/:id` with `{ ease: N }`.
@@ -326,8 +321,8 @@ This is the most critical screen in the application. It must be 100% distraction
    - `Reviewed`: 23 Cards
    - `Retention Rate`: 87% (Cards graded $\ge 3$)
    - `Streak`: 7 Days
-3. **Ease Distribution Breakdown:**
-   - Minimalist horizontal segmented bar showing percentage of Blackout (red), Hard (amber), Good/Easy (celadon).
+3. **Grade Distribution Breakdown:**
+   - Minimalist horizontal segmented bar showing percentage of Again (crimson), Hard (amber), Good/Easy (celadon).
 4. **Next Review Forecast:**
    - "Next 6 cards scheduled for tomorrow morning."
 5. **Bottom Action Tray:**
@@ -355,7 +350,7 @@ This is the most critical screen in the application. It must be 100% distraction
 3. **Deck List (Vertical Cards):**
    - Each card contains:
      - Type indicator stripe or badge:
-       - `Vocabulary`: Deep slate navy badge
+       - `Vocabulary`: Deep navy badge
        - `Grammar`: Celadon pine badge
      - Deck Name (e.g. "TOPIK I Vocabulary", "Basic Verb Endings")
      - Meta row: `142 cards · 18 due today`
@@ -444,7 +439,7 @@ This is the most critical screen in the application. It must be 100% distraction
      - Explanation text: "Controls the maximum number of new and due cards scheduled in your daily review queue."
      - Automatically updates via `PUT /api/v1/user/settings`.
 3. **App Preferences & System:**
-   - Theme toggle: `System Default` / `Hanji Light` / `Sumi Dark`.
+   - Theme toggle: `Light` (Ink & Mulberry) / `Dark` (Sumi Ink Night).
    - Haptic Feedback: Toggle switch (Enable/Disable `@capacitor/haptics`).
    - Offline Cache Management: `Clear Local Card Cache` (with size indicator).
 4. **Session & Security:**
@@ -466,7 +461,7 @@ src/lib/components/
 │   └── BottomNavBar.svelte      # 3-tab ergonomic navigation bar
 ├── study/
 │   ├── FlashCard.svelte         # 3D interactive flip card with Hangul priority
-│   ├── Sm2RatingBar.svelte      # 6-tier thumb-zone rating button grid
+│   ├── Sm2RatingBar.svelte      # Again/Hard/Good/Easy thumb-zone button grid
 │   └── SessionProgressBar.svelte# Segmented session progress meter
 ├── decks/
 │   ├── DeckCard.svelte          # Library deck preview with type indicator
@@ -504,7 +499,7 @@ src/lib/components/
   - `onSelectEase: (ease: number) => void`
   - `disabled: boolean`
 - **Behaviors:**
-  - Renders 6 distinct grade buttons (0 to 5) in a 2x3 grid.
+  - Renders 4 Grade buttons (Again, Hard, Good, Easy; `ease` 1–4) in one row.
   - Large touch target: `min-height: 48px`, `border-radius: 8px`.
   - Tactile press effect: scale down to `0.97` on touch start.
 
@@ -539,7 +534,7 @@ sequenceDiagram
     App->>App: Cache batch in local IndexedDB
 
     loop For Each Card
-        User->>App: Flips card & selects Ease (0-5)
+        User->>App: Flips card & selects a Grade (1-4)
         App->>App: Trigger Haptics & Update local progress
         alt Online
             App->>API: PUT /api/v1/reviews/:id { ease: N }
@@ -547,7 +542,7 @@ sequenceDiagram
             DB-->>API: OK
             API-->>App: 200 OK
         else Offline
-            App->>App: Queue rating payload in SyncQueue table
+            App->>App: Queue Grade payload in SyncQueue table
         end
     end
 
@@ -575,7 +570,7 @@ When building the native APK/AAB with Capacitor, apply the following settings:
 	"plugins": {
 		"SplashScreen": {
 			"launchShowDuration": 1500,
-			"backgroundColor": "#F8F6F0",
+			"backgroundColor": "#F7F5F0",
 			"androidSplashResourceName": "splash"
 		},
 		"CapacitorCookies": {
@@ -600,5 +595,5 @@ When building the native APK/AAB with Capacitor, apply the following settings:
 | **Learning Volume**   | `GET/PUT /user/settings`                        | `cardsPerDay` slider & daily progress meter          |
 | **Deck Management**   | `GET/POST/PUT/DELETE /decks/`                   | Segmented vocabulary/grammar list & bottom sheet     |
 | **Card Management**   | `GET/POST/PUT/DELETE /cards/`                   | Searchable list, live preview card creator           |
-| **SM-2 Study**        | `GET /reviews/`, `PUT /reviews/:id`             | Fullscreen mobile study loop with 0–5 rating keypad  |
+| **SM-2 Study**        | `GET /reviews/`, `PUT /reviews/:id`             | Fullscreen mobile study loop with 1–4 Grade keypad   |
 | **Time-window Study** | `GET /reviews/since/:time`                      | Catch-up study option in deck detail                 |

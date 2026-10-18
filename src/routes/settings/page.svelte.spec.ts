@@ -122,21 +122,21 @@ describe('Settings local data', () => {
 
 		// The control reports the light default rather than an uninitialised value.
 		await expect
-			.element(screen.getByRole('button', { name: 'Hanji' }))
+			.element(screen.getByRole('button', { name: 'Light' }))
 			.toHaveAttribute('aria-pressed', 'true');
 		await expect
-			.element(screen.getByRole('button', { name: 'Sumi' }))
+			.element(screen.getByRole('button', { name: 'Dark' }))
 			.toHaveAttribute('aria-pressed', 'false');
 		expect(document.documentElement.classList.contains('dark')).toBe(false);
 
-		await screen.getByRole('button', { name: 'Sumi' }).click();
+		await screen.getByRole('button', { name: 'Dark' }).click();
 
 		// The choice is reported by the control, applied, and kept on the device.
 		await expect
-			.element(screen.getByRole('button', { name: 'Sumi' }))
+			.element(screen.getByRole('button', { name: 'Dark' }))
 			.toHaveAttribute('aria-pressed', 'true');
 		await expect
-			.element(screen.getByRole('button', { name: 'Hanji' }))
+			.element(screen.getByRole('button', { name: 'Light' }))
 			.toHaveAttribute('aria-pressed', 'false');
 		expect(document.documentElement.classList.contains('dark')).toBe(true);
 		expect(localStorage.getItem(THEME_KEY)).toBe('dark');
