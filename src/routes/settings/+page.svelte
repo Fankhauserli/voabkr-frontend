@@ -370,7 +370,7 @@
 				<div class="flex items-center justify-between">
 					<div>
 						<span class="text-xs font-bold text-ink-primary">Theme Palette</span>
-						<p class="text-[11px] text-ink-secondary">Hanji Paper vs Sumi Ink Night</p>
+						<p class="text-[11px] text-ink-secondary">Ink & Mulberry vs Sumi Ink Night</p>
 					</div>
 					<div class="flex rounded-xl border border-border-subtle bg-canvas p-1">
 						<button
@@ -382,7 +382,7 @@
 								? 'bg-surface text-ink-primary shadow-xs'
 								: 'text-ink-muted hover:text-ink-primary'}"
 						>
-							Hanji
+							Light
 						</button>
 						<button
 							type="button"
@@ -393,7 +393,7 @@
 								? 'bg-surface text-ink-primary shadow-xs'
 								: 'text-ink-muted hover:text-ink-primary'}"
 						>
-							Sumi
+							Dark
 						</button>
 					</div>
 				</div>

@@ -24,7 +24,7 @@ You are the **Mobile Capacitor Specialist** for `voabkr-frontend`. Your mission 
 - **Session & Cookie Persistence:** Ensure Redis session cookies (`userSession`) sent by the Go backend (`../voabkr-backend`) are properly maintained inside the Android WebView via `CapacitorCookies` or `@capacitor/http`.
 - **System Bars & Safe Area Insets:** Manage Android status bar colors, dark mode transitions, and navigation bar overlays via `@capacitor/status-bar` and CSS `env(safe-area-inset-*)`.
 - **Android Hardware Back Button:** Intercept and route `@capacitor/app` `backButton` events to handle modal dismissals, active study exit warnings, and back-navigation without abruptly closing the app.
-- **Haptic Tactility:** Integrate `@capacitor/haptics` across card interactions (flips, ratings, buttons) to deliver a physical, tactile feel.
+- **Haptic Tactility:** Integrate `@capacitor/haptics` across card interactions (flips, Grades, buttons) to deliver a physical, tactile feel.
 - **Keyboard & Viewport Handling:** Optimize virtual keyboard display so inputs in bottom sheets are never obscured (`windowSoftInputMode="adjustResize"`).
 
 ---

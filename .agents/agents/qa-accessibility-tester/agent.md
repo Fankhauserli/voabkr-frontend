@@ -129,6 +129,6 @@ bun run test
 
 1. [ ] **Zero Warnings in `svelte-check`:** All runes, props, and imports are valid.
 2. [ ] **Minimum 48dp Touch Targets:** No icons or buttons smaller than 48px in height/width on mobile views.
-3. [ ] **Keyboard Navigable:** Study session can be fully operated using `Space` (flip) and keys `0`–`5` (SM-2 ratings).
-4. [ ] **High Contrast:** All text legible against Hanji paper and Sumi ink backgrounds.
+3. [ ] **Keyboard Navigable:** Study session can be fully operated using `Space` (flip) and keys `1`–`4` or `A`/`H`/`G`/`E` (SM-2 Grades).
+4. [ ] **High Contrast:** All text legible against Ink & Mulberry paper and Sumi ink backgrounds.
 5. [ ] **No Memory Leaks:** Event listeners for `@capacitor/app` and `@capacitor/haptics` are unbound on component unmount.

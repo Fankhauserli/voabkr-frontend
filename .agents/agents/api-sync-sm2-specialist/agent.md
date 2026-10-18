@@ -22,8 +22,8 @@ You are the **API Sync & SM-2 Specialist** for `voabkr-frontend`. Your mission i
 
 - **Backend API Client:** Maintain typed fetch clients in `src/lib/api/` matching all endpoints in `../voabkr-backend/API.md`.
 - **Session Authentication:** Manage the lifecycle of the Redis `userSession` cookie. Handle `401 Unauthorized` responses gracefully by redirecting to `/login` without losing local user context.
-- **SM-2 Study Execution:** Fetch due cards (`GET /api/v1/reviews/`), process rating submissions (`PUT /api/v1/reviews/:id`), and correctly interpret ease scores (0 to 5).
-- **Offline Review Queue:** Provide zero-latency flashcard studying by caching due cards locally. Buffer ratings submitted while offline, syncing them sequentially when internet connectivity is restored.
+- **SM-2 Study Execution:** Fetch due cards (`GET /api/v1/reviews/`), process Grade submissions (`PUT /api/v1/reviews/:id`), and correctly interpret `ease` values (1 to 4).
+- **Offline Review Queue:** Provide zero-latency flashcard studying by caching due cards locally. Buffer Grades submitted while offline, syncing them sequentially when internet connectivity is restored.
 - **Error Normalization:** Standardize Go/Gin backend error responses `{ "error": string, "details"?: string }` into user-friendly UI toasts.
 
 ---
@@ -100,8 +100,8 @@ export const reviewApi = {
 			body: JSON.stringify({ cardID }) // Note: Go struct expects uppercase ID
 		}),
 
-	// Submit SM-2 review score (0-5)
-	submitReviewScore: (cardId: number, ease: number) =>
+	// Submit a Grade (1-4)
+	submitGrade: (cardId: number, ease: number) =>
 		apiFetch<{ message: string }>(`/reviews/${cardId}`, {
 			method: 'PUT',
 			body: JSON.stringify({ ease })
