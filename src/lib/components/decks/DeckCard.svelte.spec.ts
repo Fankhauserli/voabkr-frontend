@@ -7,8 +7,22 @@ const deck: Deck = {
 	id: 10,
 	name: '한국어 기초',
 	type: 'vocabulary',
-	cardCount: 24
+	cardCount: 24,
+	dueCount: 3
 };
+
+test('shows the Card total and the Due count the API serves', async () => {
+	const screen = render(DeckCard, { deck });
+
+	await expect.element(screen.getByText('24 cards')).toBeVisible();
+	await expect.element(screen.getByText('3 due')).toBeVisible();
+});
+
+test('shows no Due badge when the caller has nothing due', async () => {
+	const screen = render(DeckCard, { deck: { ...deck, dueCount: 0 } });
+
+	expect(screen.getByText('0 due').elements()).toHaveLength(0);
+});
 
 test('marks a Deck held on the device and offers to remove it', async () => {
 	const onRemoveFromDevice = vi.fn();

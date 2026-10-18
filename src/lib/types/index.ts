@@ -5,8 +5,7 @@
  * Wire field names are the names the API serves — a protocol buffer's
  * json_name, not its internal field name. A snake_case buffer name is accepted
  * as an input alias by the API but is never served, so the client does not
- * declare it. Fields the API does not serve yet (for example the Deck counts)
- * are kept deliberately and tracked separately.
+ * declare it. A field the API does not carry is not declared either.
  */
 
 export type DeckType = 'vocabulary' | 'grammar';
@@ -16,8 +15,9 @@ export interface Deck {
 	id: number;
 	name: string;
 	type: DeckType;
-	description?: string;
+	/** How many live Cards the Deck holds. */
 	cardCount?: number;
+	/** How many of the caller's Reviews of the Deck's live Cards are Due now. */
 	dueCount?: number;
 	ownerId?: number;
 	isPublic?: boolean;
@@ -28,7 +28,6 @@ export interface Deck {
 export interface DeckRequest {
 	name: string;
 	type: DeckType;
-	description?: string;
 	isPublic?: boolean;
 }
 
@@ -52,7 +51,6 @@ export interface SharedDeckPreview {
 	cardCount?: number;
 	ownerName?: string;
 	isPublic?: boolean;
-	permission?: 'view' | 'edit';
 	shareToken?: string;
 }
 
